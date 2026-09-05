@@ -39,6 +39,7 @@ pub struct Renderable {
 pub struct Occupancy {
     pub cells: Vec<Option<Entity>>,
     width: usize,
+    #[allow(dead_code)]
     height: usize,
 }
 
