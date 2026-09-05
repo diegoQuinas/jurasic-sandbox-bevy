@@ -3,9 +3,9 @@ use std::time::Duration;
 use bevy::{app::ScheduleRunnerPlugin, prelude::*};
 
 use crate::{board::BoardPlugin, creatures::CreaturesPlugin};
-
 mod board;
 mod creatures;
+
 
 fn main() {
     App::new()

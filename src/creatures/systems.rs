@@ -30,6 +30,7 @@ pub fn wander_system(
             Direction::West,
         ];
 
+
         let direction = directions.choose(&mut rng).unwrap();
         let mut dx = 0;
         let mut dy = 0;
@@ -59,15 +60,15 @@ pub fn wander_system(
 
 pub fn mature_eggs_system(
     mut commands: Commands,
-    query: Query<(Entity, &mut Egg, &Position)>,
+    query: Query<(Entity, &mut Egg, &Position , &Genes)>,
     mut performance: ResMut<SystemPerformance>,
 ) {
     let start = Instant::now();
-    for (entity, mut egg, pos) in query {
+    for (entity, mut egg, pos, genes) in query {
         if egg.age < 10 {
             egg.age = egg.age.saturating_add(1);
         } else {
-            commands.spawn(dinosaur_bundle(pos.x, pos.y));
+            commands.spawn(dinosaur_bundle(pos.x, pos.y , genes.starving_resistance));
             commands.entity(entity).despawn();
         }
     }
@@ -150,16 +151,16 @@ pub fn spawn_random_plants(
 
 pub fn reproduction_system(
     mut commands: Commands,
-    query: Query<&Position, With<Dinosaur>>,
+    query: Query<(&Position, &Genes), With<Dinosaur>>,
     mut performance: ResMut<SystemPerformance>,
 ) {
     let start = Instant::now();
-    for p in query {
+    for (p, genes) in query {
         let reproduct = rng().random_bool(0.1);
         if !reproduct {
             return;
         }
-        commands.spawn(egg_bundle(p.x, p.y));
+        commands.spawn(egg_bundle(p.x, p.y , genes.starving_resistance));
     }
     performance.reproduction = start.elapsed().as_secs_f64() * 1000.00
 }

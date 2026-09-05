@@ -27,7 +27,7 @@ pub fn render(
     performance: Res<Performance>,
     systems_performance: Res<SystemPerformance>,
 ) {
-    let headless = true;
+    let headless = false;
     execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0),).unwrap();
     if !headless {
         let board = board.single().expect("Can't find board");
