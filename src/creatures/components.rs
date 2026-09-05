@@ -35,6 +35,11 @@ pub enum Direction {
     East,
     West,
 }
+#[derive(Component)]
+pub struct Genes  {
+    pub starving_resistance: i32,
+
+}
 
 #[derive(Component)]
 pub struct Hungry {

@@ -18,7 +18,7 @@ pub fn spawn_creatures(board: Query<&Board>, mut commands: Commands) {
             let options = rand::rng().random_range(1..=10);
             match options {
                 1 => {
-                    commands.spawn(dinosaur_bundle(x, y));
+                    commands.spawn(dinosaur_bundle(x, y , rand::rng().random_range(-5..=5)));
                 }
                 2..10 => {}
                 _ => {
@@ -29,8 +29,9 @@ pub fn spawn_creatures(board: Query<&Board>, mut commands: Commands) {
     }
 }
 
-pub fn dinosaur_bundle(x: usize, y: usize) -> impl Bundle {
-    let n = rand::rng().random_range(10..=20);
+pub fn dinosaur_bundle(x: usize, y: usize, starving_resistance: i32) -> impl Bundle {
+    let n = 15;
+    let n = (n + starving_resistance).clamp(10, 20) as u32;
     (
         Dinosaur {},
         Hungry {
@@ -43,14 +44,20 @@ pub fn dinosaur_bundle(x: usize, y: usize) -> impl Bundle {
             glyph: String::from("🦖"),
         },
         Mortal {},
-        Wanderer {},
+        Wanderer {},   
+        Genes{
+            starving_resistance: starving_resistance,
+        },
     )
 }
 
-pub fn egg_bundle(x: usize, y: usize) -> impl Bundle {
+pub fn egg_bundle(x: usize, y: usize, starving_resistance: i32) -> impl Bundle {
     (
         Egg { age: 0 },
         Position { x, y },
+        Genes{
+            starving_resistance
+        },
         Renderable {
             glyph: String::from("🥚"),
         },
