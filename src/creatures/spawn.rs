@@ -2,6 +2,7 @@ use bevy::ecs::{
     bundle::Bundle,
     system::{Commands, Query},
 };
+use crossterm::style::{Color, Stylize};
 use rand::RngExt;
 
 use crate::{
@@ -16,9 +17,21 @@ pub fn spawn_creatures(board: Query<&Board>, mut commands: Commands) {
     for y in 0..height {
         for x in 0..width {
             let options = rand::rng().random_range(1..=10);
+            const PALETTE: [Color; 5] = [
+                Color::Red,
+                Color::Green,
+                Color::Yellow,
+                Color::Blue,
+                Color::Magenta,
+            ];
+            let color = PALETTE[rand::rng().random_range(0..PALETTE.len())];
+            let random_family = Genes {
+                starving_resistance: rand::rng().random_range(-5..=5),
+                glyph: format!("{}", "D ".with(color)),
+            };
             match options {
                 1 => {
-                    commands.spawn(dinosaur_bundle(x, y , rand::rng().random_range(-5..=5)));
+                    commands.spawn(dinosaur_bundle(x, y, &random_family));
                 }
                 2..10 => {}
                 _ => {
@@ -29,9 +42,9 @@ pub fn spawn_creatures(board: Query<&Board>, mut commands: Commands) {
     }
 }
 
-pub fn dinosaur_bundle(x: usize, y: usize, starving_resistance: i32) -> impl Bundle {
+pub fn dinosaur_bundle(x: usize, y: usize, genes: &Genes) -> impl Bundle {
     let n = 15;
-    let n = (n + starving_resistance).clamp(10, 20) as u32;
+    let n = (n + genes.starving_resistance).clamp(10, 20) as u32;
     (
         Dinosaur {},
         Hungry {
@@ -41,23 +54,18 @@ pub fn dinosaur_bundle(x: usize, y: usize, starving_resistance: i32) -> impl Bun
         Health(10),
         Position { x, y },
         Renderable {
-            glyph: String::from("🦖"),
+            glyph: genes.glyph.clone(),
         },
         Mortal {},
-        Wanderer {},   
-        Genes{
-            starving_resistance: starving_resistance,
-        },
+        Wanderer {},
     )
 }
 
-pub fn egg_bundle(x: usize, y: usize, starving_resistance: i32) -> impl Bundle {
+pub fn egg_bundle(x: usize, y: usize, genes: Genes) -> impl Bundle {
     (
         Egg { age: 0 },
         Position { x, y },
-        Genes{
-            starving_resistance
-        },
+        genes,
         Renderable {
             glyph: String::from("🥚"),
         },
