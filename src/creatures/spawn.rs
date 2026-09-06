@@ -1,5 +1,3 @@
-use std::{fmt::format, vec};
-
 use bevy::ecs::{
     bundle::Bundle,
     system::{Commands, Query},
