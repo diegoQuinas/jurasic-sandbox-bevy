@@ -32,7 +32,7 @@ fn create_families() -> Vec<Genes> {
         .map(|id| {
             let color = PALETTE[(id as usize - 1) % PALETTE.len()];
             Genes {
-                starving_resistance: rng.random_range(-100..=100),
+                starving_resistance: rng.random_range(-50..=50),
                 glyph: String::from("D "),
                 color,
                 family: FamilyId(id),
@@ -61,8 +61,8 @@ pub fn spawn_creatures(board: Res<Board>, mut commands: Commands) {
 }
 
 pub fn dinosaur_bundle(x: usize, y: usize, genes: &Genes) -> impl Bundle {
-    let n = 150;
-    let n = (n + genes.starving_resistance).clamp(50, 250) as u32;
+    let n = 75;
+    let n = (n + genes.starving_resistance).clamp(25, 125) as u32;
     (
         Dinosaur {},
         Hungry {

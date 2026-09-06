@@ -22,6 +22,7 @@ impl Plugin for CreaturesPlugin {
                 (
                     mature_eggs_system,
                     wander_system,
+                    eating_system,
                     reproduction_system,
                     hunger_system,
                     starving_system,

@@ -9,6 +9,7 @@ mod terminal;
 
 fn main() {
     App::new()
+        .insert_resource(crate::board::Board { width: 40, height: 30 })
         .init_resource::<Performance>()
         .init_resource::<SystemPerformance>()
         .configure_sets(Startup, (StartupSet::Board, StartupSet::Creatures).chain())

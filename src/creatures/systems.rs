@@ -212,22 +212,91 @@ pub fn spawn_random_plants(
     occupancy.set(Position { x, y, z: 0 }, Some(entity));
     performance.spawn_plants = start.elapsed().as_secs_f64() * 1000.00
 }
-
 pub fn reproduction_system(
     mut commands: Commands,
-    query: Query<(Entity, &Position, &Genes), (With<Dinosaur>, Without<Starving>)>,
-    mut performance: ResMut<SystemPerformance>,
+    board: Res<Board>,
     mut occupancy: ResMut<Occupancy>,
+    mut query: Query<(&Position, &Genes, &mut Hungry), (With<Dinosaur>, Without<Starving>)>,
+    mut performance: ResMut<SystemPerformance>,
 ) {
-    let start = Instant::now();
-    for (entity, p, genes) in query {
-        let reproduct = rng().random_bool(0.1);
+    let start = std::time::Instant::now();
+    
+    for (p, genes, hungry) in &mut query {
+        // 1. Check if they are >= 70% full.
+        // Hunger starts at 0 and goes UP. Being 70% full means hunger is 30% or less of max.
+        let max_allowed_hunger = (hungry.starvation_threshold as f32 * 0.30) as u32;
+        if hungry.hunger > max_allowed_hunger {
+            continue; // Too hungry to lay an egg
+        }
+
+        // 2. Random chance to reproduce (1% per tick)
+        let reproduct = rand::rng().random_bool(0.005);
         if !reproduct {
             continue;
         }
 
-        commands.spawn(egg_bundle(p.x, p.y, genes.clone()));
-        occupancy.set(*p, Some(entity));
+        // 3. Look for a free tile around the dinosaur for the egg
+        let mut spawn_pos = None;
+        let directions = [
+            Direction::North, Direction::South, 
+            Direction::East, Direction::West
+        ];
+        
+        for dir in directions {
+            let target = step(*p, dir);
+            // If the tile is on the board and nobody is standing there
+            if board.is_inside(target) && !occupancy.is_occupied(target) {
+                spawn_pos = Some(target);
+                break; // We found a safe spot!
+            }
+        }
+
+        // 4. If we found a safe spot, spawn the egg there
+        if let Some(egg_pos) = spawn_pos {
+            let egg_entity = commands.spawn(egg_bundle(egg_pos.x, egg_pos.y, genes.clone())).id();
+            occupancy.set(egg_pos, Some(egg_entity));
+        }
     }
+    
     performance.reproduction = start.elapsed().as_secs_f64() * 1000.00
+}
+
+
+pub fn eating_system(
+    mut commands: Commands,
+    mut occupancy: ResMut<Occupancy>,
+    mut dinos: Query<(&Position, &mut Hungry), With<Dinosaur>>,
+    plants: Query<(Entity, &Position), With<Plant>>,
+) {
+    // Keep track of eaten plants so two dinos don't try to eat the same one at the same time
+    let mut eaten_plants = std::collections::HashSet::new();
+
+    for (dino_pos, mut hungry) in &mut dinos {
+        for (plant_entity, plant_pos) in &plants {
+            if eaten_plants.contains(&plant_entity) {
+                continue;
+            }
+
+            // Calculate Manhattan distance
+            let dist_x = dino_pos.x.abs_diff(plant_pos.x);
+            let dist_y = dino_pos.y.abs_diff(plant_pos.y);
+
+            // If the plant is immediately up, down, left, or right (distance == 1)
+            if dist_x + dist_y <= 1 {
+                // 1. Delete the plant from the game
+                commands.entity(plant_entity).despawn();
+                
+                // 2. Free up the tile in the occupancy map
+                occupancy.set(*plant_pos, None);
+                
+                // 3. The dinosaur is now 100% full! (Hunger goes back to 0)
+                hungry.hunger = 0;
+                
+                // 4. Mark plant as eaten
+                eaten_plants.insert(plant_entity);
+                
+                break; // Stop looking for plants this tick
+            }
+        }
+    }
 }
