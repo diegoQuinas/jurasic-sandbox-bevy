@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use bevy::prelude::*;
-use rand::{RngExt, rng, seq::IndexedRandom};
+use rand::{RngExt, rng, seq::SliceRandom};
 
 use crate::{
     SystemPerformance,
@@ -13,44 +13,44 @@ pub fn wander_system(
     board: Res<Board>,
     mut performance: ResMut<SystemPerformance>,
     mut occupancy: ResMut<Occupancy>,
-    mut dinos: Query<(Entity, &mut Position), With<Dinosaur>>,
+    mut dinos: Query<(Entity, &mut Position), With<Wanderer>>,
 ) {
     let start = Instant::now();
     let mut rng = rand::rng();
 
+    let mut directions = [
+        Direction::North,
+        Direction::South,
+        Direction::East,
+        Direction::West,
+    ];
+
     for (entity, mut position) in &mut dinos {
-        if !rng.random_bool(0.5) {
-            continue;
-        }
-
-        let directions = [
-            Direction::North,
-            Direction::South,
-            Direction::East,
-            Direction::West,
-        ];
-
-        let direction = directions.choose(&mut rng).unwrap();
-        let mut dx = 0;
-        let mut dy = 0;
-        match direction {
-            Direction::East => dx = 1,
-            Direction::West => dx = -1,
-            Direction::North => dy = -1,
-            Direction::South => dy = 1,
-        }
-        let target = Position {
-            x: position.x.saturating_add_signed(dx),
-            y: position.y.saturating_add_signed(dy),
+        let mut target = Position {
+            x: position.x,
+            y: position.y,
         };
+        directions.shuffle(&mut rng);
+        for direction in directions {
+            let (dx, dy) = match direction {
+                Direction::East => (1, 0),
+                Direction::West => (-1, 0),
+                Direction::North => (0, -1),
+                Direction::South => (0, 1),
+            };
+            target = Position {
+                x: position.x.saturating_add_signed(dx),
+                y: position.y.saturating_add_signed(dy),
+            };
+            if !board.is_inside(target) {
+                continue;
+            }
+            if occupancy.is_occupied(target) {
+                continue;
+            }
 
-        if !board.is_inside(target) {
-            continue;
+            break;
         }
-        if occupancy.is_occupied(target) {
-            continue;
-        }
-
         occupancy.move_entity(entity, *position, target);
         *position = target;
     }

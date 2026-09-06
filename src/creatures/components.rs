@@ -29,6 +29,7 @@ pub struct Corpse;
 #[derive(Component)]
 pub struct Plant;
 
+#[derive(Clone, Copy)]
 pub enum Direction {
     North,
     South,
