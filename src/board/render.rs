@@ -11,9 +11,7 @@ use crossterm::{
 };
 
 use crate::{
-    Performance, SystemPerformance,
-    board::{Board, Position, Renderable},
-    creatures::components::{Corpse, Dinosaur, Egg, Plant},
+    Performance, SystemPerformance, board::{Board, Position, Renderable}, creatures::components::{Corpse, Dinosaur, Egg, Genes, Plant},
 };
 
 pub fn render(
@@ -23,6 +21,7 @@ pub fn render(
     eggs: Query<(), With<Egg>>,
     corpses: Query<(), With<Corpse>>,
     dinos: Query<(), With<Dinosaur>>,
+    genes: Query<&Genes, With<Genes>>,
     entities: Query<()>,
     performance: Res<Performance>,
     systems_performance: Res<SystemPerformance>,
@@ -99,6 +98,7 @@ pub fn render(
     let plants = plants.count();
     let eggs = eggs.count();
     let corpses = corpses.count();
+    let genes = genes.iter().map(|g: &Genes| g.clone()).collect::<Vec<Genes>>();
     let totals: usize = [dinos, plants, eggs, corpses].iter().sum();
     println!("Dinos: {}", dinos);
     println!("Plants: {}", plants);
@@ -107,13 +107,16 @@ pub fn render(
     println!("Total : {}", totals);
     println!("Entities: {}", entities.count());
     println!("Ticks per second: {}", performance.ticks_per_second);
-    println!("=== Performance ===");
+    /*println!("=== Performance ===");
     println!("eggs_mature: {:.4}", systems_performance.eggs_mature);
     println!("wander: {:.4}", systems_performance.wander);
     println!("reproduction: {:.4}", systems_performance.reproduction);
     println!("hunger: {:.4}", systems_performance.hunger);
     println!("starving: {:.4}", systems_performance.starving);
     println!("spawn_plants: {:.4}", systems_performance.spawn_plants);
-    println!("decay: {:.4}", systems_performance.decay);
+    println!("decay: {:.4}", systems_performance.decay);*/
+    for gene in genes {
+        println!("Color {:?} resistance {:?} ",  gene.color,gene.starving_resistance );
+    }
     stdout().flush().unwrap();
 }
