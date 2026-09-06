@@ -13,7 +13,8 @@ pub fn wander_system(
     board: Res<Board>,
     mut performance: ResMut<SystemPerformance>,
     mut occupancy: ResMut<Occupancy>,
-    mut dinos: Query<(Entity, &mut Position), With<Wanderer>>,
+    mut dinos: Query<(Entity, &mut Position), (With<Wanderer>,Without<Plant>)>,
+    mut plants_query: Query<(Entity, &Position), (With<Plant>,Without<Dinosaur>)>,
 ) {
     let start = Instant::now();
     let mut rng = rand::rng();
@@ -25,36 +26,61 @@ pub fn wander_system(
         Direction::West,
     ];
 
+
     for (entity, mut position) in &mut dinos {
         let mut target = Position {
             x: position.x,
             y: position.y,
         };
-        directions.shuffle(&mut rng);
-        for direction in directions {
-            let (dx, dy) = match direction {
-                Direction::East => (1, 0),
-                Direction::West => (-1, 0),
-                Direction::North => (0, -1),
-                Direction::South => (0, 1),
-            };
-            target = Position {
-                x: position.x.saturating_add_signed(dx),
-                y: position.y.saturating_add_signed(dy),
-            };
-            if !board.is_inside(target) {
-                continue;
+       
+        if let Some((_plant_entity, plant_pos)) = find_closest_food(&position, &plants_query) {
+            let move_direction = find_closest_tide(&position, &plant_pos);
+            match move_direction {
+            Direction::North => target.y = target.y.saturating_sub(1),
+            Direction::South => target.y = target.y.saturating_add(1),
+            Direction::East => target.x = target.x.saturating_add(1),
+            Direction::West => target.x = target.x.saturating_sub(1),
             }
-            if occupancy.is_occupied(target) {
-                continue;
-            }
-
-            break;
         }
-        occupancy.move_entity(entity, *position, target);
-        *position = target;
+        
+        if target.x != position.x || target.y != position.y {
+            occupancy.move_entity(entity, *position, target);
+            *position = target;
+        }
+
     }
     performance.wander = start.elapsed().as_secs_f64() * 1000.00
+}
+//Recive un dinasurio y devuelve la planta mas sercana. 
+pub fn find_closest_food(dino_pos: &Position,plants_query: &Query<(Entity, &Position), With<Plant>>,)-> Option<(Entity, Position)> {
+    plants_query
+        .iter()
+        .min_by_key(|(_, plant_pos)| {
+            // Calculate Manhattan distance on a grid
+            let distance_x = dino_pos.x.abs_diff(plant_pos.x);
+            let distance_y = dino_pos.y.abs_diff(plant_pos.y);
+            
+            distance_x + distance_y
+        }).map(|(entity, pos)| (entity, *pos))
+
+}
+pub fn find_closest_tide(wander_pos: &Position, target_pos: &Position) -> Direction {
+    let dx = target_pos.x as isize - wander_pos.x as isize;
+    let dy = target_pos.y as isize - wander_pos.y as isize;
+
+    if dx.abs() > dy.abs() {
+        if dx > 0 {
+            Direction::East
+        } else {
+            Direction::West
+        }
+    } else {
+        if dy > 0 {
+            Direction::South
+        } else {
+            Direction::North
+        }
+    }
 }
 
 pub fn mature_eggs_system(
