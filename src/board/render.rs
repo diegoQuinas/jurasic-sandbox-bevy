@@ -71,7 +71,7 @@ pub fn render(
 
             let sidebar = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Length(8), Constraint::Min(3)])
+                .constraints([Constraint::Length(10), Constraint::Min(3)])
                 .split(cols[1]);
 
             let stats = Paragraph::new(vec![
@@ -82,6 +82,7 @@ pub fn render(
                 Line::from(format!("Total:     {}", totals)),
                 Line::from(format!("Entities:  {}", entity_count)),
                 Line::from(format!("TPS:       {}", ticks_per_second)),
+                Line::from(format!("Genes:     {:?}", genes)),
             ])
             .block(
                 Block::default()

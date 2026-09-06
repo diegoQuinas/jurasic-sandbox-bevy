@@ -50,6 +50,7 @@ pub fn find_closest_food(
         })
         .map(|(entity, pos)| (entity, *pos))
 }
+
 pub fn find_closest_tile(
     wander_pos: &Position,
     target_pos: &Position,
@@ -59,6 +60,7 @@ pub fn find_closest_tile(
     let dx = target_pos.x as isize - wander_pos.x as isize;
     let dy = target_pos.y as isize - wander_pos.y as isize;
 
+    // Primera opción
     let primary = if dx.abs() > dy.abs() {
         if dx > 0 {
             Direction::East
@@ -75,6 +77,7 @@ pub fn find_closest_tile(
         return primary;
     }
 
+    // Fallback
     let secondary = if dx.abs() > dy.abs() {
         if dy > 0 {
             Direction::South
@@ -91,6 +94,7 @@ pub fn find_closest_tile(
         primary
     };
 
+    // Como la función debe retornar obligatoriamente una direccion, devuelve primary si secondary esta ocupado aunque lo detiene arriba el wanderer_system
     if secondary != primary && neighbor_free(wander_pos, secondary, board, occupancy) {
         secondary
     } else {
@@ -211,7 +215,7 @@ pub fn spawn_random_plants(
 
 pub fn reproduction_system(
     mut commands: Commands,
-    query: Query<(Entity, &Position, &Genes), With<Dinosaur>>,
+    query: Query<(Entity, &Position, &Genes), (With<Dinosaur>, Without<Starving>)>,
     mut performance: ResMut<SystemPerformance>,
     mut occupancy: ResMut<Occupancy>,
 ) {
@@ -219,7 +223,7 @@ pub fn reproduction_system(
     for (entity, p, genes) in query {
         let reproduct = rng().random_bool(0.1);
         if !reproduct {
-            return;
+            continue;
         }
 
         commands.spawn(egg_bundle(p.x, p.y, genes.clone()));
