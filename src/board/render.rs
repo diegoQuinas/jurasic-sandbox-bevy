@@ -11,7 +11,9 @@ use crossterm::{
 };
 
 use crate::{
-    Performance, SystemPerformance, board::{Board, Position, Renderable}, creatures::components::{Corpse, Dinosaur, Egg, Genes, Plant},
+    Performance, SystemPerformance,
+    board::{Board, Position, Renderable},
+    creatures::components::{Corpse, Dinosaur, Egg, Genes, Plant},
 };
 
 pub fn render(
@@ -30,10 +32,21 @@ pub fn render(
     execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0),).unwrap();
     if !headless {
         let board = board.single().expect("Can't find board");
-        let mut tiles: HashMap<(usize, usize), &String> = HashMap::new();
-        for (pos, rend) in entity_renderables.iter() {
-            tiles.insert((pos.x, pos.y), &rend.glyph);
-        }
+        let visible_tiles: HashMap<(usize, usize), (usize, &String)> =
+            entity_renderables.iter().fold(
+                HashMap::<(usize, usize), (usize, &String)>::new(),
+                |mut visible, (position, renderable)| {
+                    visible
+                        .entry((position.x, position.y))
+                        .and_modify(|current| {
+                            if position.z > current.0 {
+                                *current = (position.z, &renderable.glyph)
+                            }
+                        })
+                        .or_insert((position.z, &renderable.glyph));
+                    visible
+                },
+            );
 
         let top_separator = {
             let mut s = String::with_capacity(board.width * 4 + 2);
@@ -80,7 +93,10 @@ pub fn render(
         for y in 0..board.height {
             print!("┃ ");
             for x in 0..board.width {
-                let glyph = tiles.get(&(x, y)).map(|g| g.as_str()).unwrap_or("  ");
+                let glyph = visible_tiles
+                    .get(&(x, y))
+                    .map(|(_, glyph)| glyph.as_str())
+                    .unwrap_or("  ");
                 if x == board.width - 1 {
                     print!("{} ┃", glyph);
                 } else {
@@ -98,7 +114,10 @@ pub fn render(
     let plants = plants.count();
     let eggs = eggs.count();
     let corpses = corpses.count();
-    let genes = genes.iter().map(|g: &Genes| g.clone()).collect::<Vec<Genes>>();
+    let genes = genes
+        .iter()
+        .map(|g: &Genes| g.clone())
+        .collect::<Vec<Genes>>();
     let totals: usize = [dinos, plants, eggs, corpses].iter().sum();
     println!("Dinos: {}", dinos);
     println!("Plants: {}", plants);
@@ -116,7 +135,10 @@ pub fn render(
     println!("spawn_plants: {:.4}", systems_performance.spawn_plants);
     println!("decay: {:.4}", systems_performance.decay);*/
     for gene in genes {
-        println!("Color {:?} resistance {:?} ",  gene.color,gene.starving_resistance );
+        println!(
+            "Color {:?} resistance {:?} ",
+            gene.color, gene.starving_resistance
+        );
     }
     stdout().flush().unwrap();
 }

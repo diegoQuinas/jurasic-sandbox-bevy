@@ -29,6 +29,7 @@ impl Board {
 pub struct Position {
     pub x: usize,
     pub y: usize,
+    pub z: usize,
 }
 
 #[derive(Component)]
@@ -51,17 +52,24 @@ impl Occupancy {
             height,
         }
     }
-    pub fn move_entity(&mut self, entity: Entity, from: Position, to: Position) {
-        let from = self.index(from);
-        let to = self.index(to);
 
-        self.cells[from] = None;
-        self.cells[to] = Some(entity);
+    #[inline]
+    pub fn get(&self, pos: Position) -> Option<Entity> {
+        self.cells[self.index(pos)]
     }
+
+    #[inline]
+    pub fn set(&mut self, pos: Position, entity: Option<Entity>) {
+        let index = self.index(pos);
+        self.cells[index] = entity;
+    }
+
+    #[inline]
     pub fn index(&self, pos: Position) -> usize {
         pos.y * self.width + pos.x
     }
 
+    #[inline]
     pub fn is_occupied(&self, pos: Position) -> bool {
         self.cells[self.index(pos)].is_some()
     }

@@ -71,7 +71,7 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &Genes) -> impl Bundle {
             starvation_threshold: n,
         },
         Health(10),
-        Position { x, y },
+        Position { x, y, z: 3 },
         Renderable {
             glyph: genes.glyph.clone(),
         },
@@ -84,7 +84,7 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &Genes) -> impl Bundle {
 pub fn egg_bundle(x: usize, y: usize, genes: Genes) -> impl Bundle {
     (
         Egg { age: 0 },
-        Position { x, y },
+        Position { x, y, z: 1 },
         genes,
         Renderable {
             glyph: String::from("🥚"),
@@ -98,7 +98,7 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
         Renderable {
             glyph: String::from("💀"),
         },
-        Position { x, y },
+        Position { x, y, z: 0 },
         Decay {
             degradation_threshold: 10,
             degradation: 0,
@@ -109,13 +109,13 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
 pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
     (
         Plant,
-        Position { x, y },
+        Position { x, y, z: 2 },
         Renderable {
             glyph: String::from("🌱"),
         },
         Decay {
             degradation: 0,
-            degradation_threshold: 10,
+            degradation_threshold: 100,
         },
     )
 }

@@ -31,6 +31,7 @@ pub fn wander_system(
         let mut target = Position {
             x: position.x,
             y: position.y,
+            z: position.z,
         };
        
         if let Some((_plant_entity, plant_pos)) = find_closest_food(&position, &plants_query) {
@@ -165,26 +166,30 @@ pub fn spawn_random_plants(
     mut commands: Commands,
     board: Res<Board>,
     mut performance: ResMut<SystemPerformance>,
+    mut occupancy: ResMut<Occupancy>,
 ) {
     let start = Instant::now();
     let x = rng().random_range(0..board.width);
     let y = rng().random_range(0..board.height);
 
-    commands.spawn(plant_bundle(x, y));
+    let entity = commands.spawn(plant_bundle(x, y)).id();
+    occupancy.set(Position { x, y, z: 0 }, Some(entity));
     performance.spawn_plants = start.elapsed().as_secs_f64() * 1000.00
 }
 
 pub fn reproduction_system(
     mut commands: Commands,
-    query: Query<(&Position, &Genes), With<Dinosaur>>,
+    query: Query<(Entity, &Position, &Genes), With<Dinosaur>>,
     mut performance: ResMut<SystemPerformance>,
+    mut occupancy: ResMut<Occupancy>,
 ) {
     let start = Instant::now();
-    for (p, genes) in query {
+    for (entity, p, genes) in query {
         let reproduct = rng().random_bool(0.1);
         if !reproduct {
             return;
         }
+        occupancy.set(*p, Some(entity));
         commands.spawn(egg_bundle(p.x, p.y, genes.clone()));
     }
     performance.reproduction = start.elapsed().as_secs_f64() * 1000.00
