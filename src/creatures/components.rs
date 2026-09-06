@@ -36,13 +36,16 @@ pub enum Direction {
     East,
     West,
 }
-#[derive(Component, Clone,Debug)]
+#[derive(Component, Clone, Debug)]
 pub struct Genes {
     pub starving_resistance: i32,
     pub glyph: String,
     pub color: crossterm::style::Color,
-    pub family: u32,
+    pub family: FamilyId,
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct FamilyId(pub u32);
 
 #[derive(Component)]
 pub struct Hungry {

@@ -1,9 +1,9 @@
 use std::{fmt::format, vec};
 
-use bevy::{ecs::{
+use bevy::ecs::{
     bundle::Bundle,
     system::{Commands, Query},
-}};
+};
 use crossterm::style::{Color, Stylize};
 use rand::RngExt;
 
@@ -12,57 +12,53 @@ use crate::{
     creatures::components::*,
 };
 
+const FAMILY_COUNT: u32 = 10;
+
+const PALETTE: [Color; 10] = [
+    Color::Red,
+    Color::Green,
+    Color::Yellow,
+    Color::Blue,
+    Color::Magenta,
+    Color::Cyan,
+    Color::White,
+    Color::DarkRed,
+    Color::DarkGreen,
+    Color::DarkBlue,
+];
+
+fn create_families() -> Vec<Genes> {
+    let mut rng = rand::rng();
+
+    (1..=FAMILY_COUNT)
+        .map(|id| {
+            let color = PALETTE[(id as usize - 1) % PALETTE.len()];
+            Genes {
+                starving_resistance: rng.random_range(-5..=5),
+                glyph: "D ".with(color).to_string(),
+                color,
+                family: FamilyId(id),
+            }
+        })
+        .collect()
+}
+
 pub fn spawn_creatures(board: Query<&Board>, mut commands: Commands) {
     let board = board.single().expect("Board not found");
-    let (width, height) = (board.width, board.height);
-    const FAMILY: [u32; 10] = [1, 2, 3, 4, 5 ,6,7,8,9,10];
-    const PALETTE: [Color; 10] = [
-                Color::Red,
-                Color::Green,
-                Color::Yellow,
-                Color::Blue,
-                Color::Magenta,
-                Color::Cyan,
-                Color::White,
-                Color::DarkRed,
-                Color::DarkGreen,
-                Color::DarkBlue,
-            ];
-    let mut randomfamilies: Vec<Genes> = Vec::new();
-    
-    for i   in FAMILY  {
-        let color = PALETTE[(i as usize - 1) % PALETTE.len()];
-        let random_family = Genes {
-                starving_resistance: rand::rng().random_range(-5..=5),
-                glyph: format!("{}","D ".with(color)),
-                color,
-                family: i,
-        };
-         randomfamilies.push(random_family);        
-    }
+    let mut rng = rand::rng();
+    let mut families = create_families();
 
-    for y in 0..height {
-        for x in 0..width {
-            let options = rand::rng().random_range(1..=10);
- 
-            match options {
-                1 => {
-                    if(randomfamilies.len() == 0) {
-                        break;
-                    }
-                    let random_index = rand::rng().random_range(0..randomfamilies.len());
-                    let randomfamily = randomfamilies.swap_remove(random_index);
-                    
-                    commands.spawn(dinosaur_bundle(x, y, &randomfamily));
-
-                    
-                    
-                }
-                2..10 => {}
-                _ => {
-                    continue;
-                }
+    for y in 0..board.height {
+        for x in 0..board.width {
+            if rng.random_range(0..10) != 0 {
+                continue;
             }
+
+            let Some(family) = families.pop() else {
+                return;
+            };
+
+            commands.spawn(dinosaur_bundle(x, y, &family));
         }
     }
 }
