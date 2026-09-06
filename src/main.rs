@@ -15,9 +15,7 @@ fn main() {
         .add_systems(Update, performance_system)
         .add_plugins(BoardPlugin)
         .add_plugins(CreaturesPlugin)
-        .add_plugins(
-            MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(1000))),
-        )
+        .add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(100))))
         .add_plugins(TuiPlugin)
         .run();
 }

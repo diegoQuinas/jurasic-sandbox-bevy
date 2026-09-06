@@ -17,7 +17,7 @@ use crate::{
 
 pub fn render(
     mut terminal: ResMut<TuiTerminal>,
-    board: Query<&Board>,
+    board: Res<Board>,
     entity_renderables: Query<(&Position, &Renderable)>,
     plants: Query<(), With<Plant>>,
     eggs: Query<(), With<Egg>>,
@@ -28,8 +28,6 @@ pub fn render(
     performance: Res<Performance>,
     _systems_performance: Res<SystemPerformance>,
 ) {
-    let board = board.single().expect("Can't find board");
-
     let mut visible: HashMap<(usize, usize), (usize, &Renderable)> = HashMap::new();
     for (position, renderable) in entity_renderables.iter() {
         visible

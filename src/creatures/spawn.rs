@@ -1,6 +1,6 @@
 use bevy::ecs::{
     bundle::Bundle,
-    system::{Commands, Query},
+    system::{Commands, Res},
 };
 use rand::RngExt;
 use ratatui::style::Color;
@@ -41,8 +41,7 @@ fn create_families() -> Vec<Genes> {
         .collect()
 }
 
-pub fn spawn_creatures(board: Query<&Board>, mut commands: Commands) {
-    let board = board.single().expect("Board not found");
+pub fn spawn_creatures(board: Res<Board>, mut commands: Commands) {
     let mut rng = rand::rng();
     let mut families = create_families();
 
