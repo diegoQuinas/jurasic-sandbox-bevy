@@ -110,10 +110,10 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
 
 pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
     (
-        Plant,
+        Plant { health: 7 },
         Position { x, y, z: 2 },
         Renderable {
-            glyph: String::from("♣"),
+            glyph: String::from("🌳"),
             color: Color::Green,
         },
         Decay {

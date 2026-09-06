@@ -125,7 +125,7 @@ pub fn mature_eggs_system(
 ) {
     let start = Instant::now();
     for (entity, mut egg, pos, genes) in query {
-        if egg.age < 10 {
+        if egg.age < 90 {
             egg.age = egg.age.saturating_add(1);
         } else {
             commands.spawn(dinosaur_bundle(pos.x, pos.y, genes));
@@ -266,13 +266,13 @@ pub fn eating_system(
     mut commands: Commands,
     mut occupancy: ResMut<Occupancy>,
     mut dinos: Query<(&Position, &mut Hungry), With<Dinosaur>>,
-    plants: Query<(Entity, &Position), With<Plant>>,
+    mut plants: Query<(Entity, &Position, &mut Plant)>,
 ) {
     // Keep track of eaten plants so two dinos don't try to eat the same one at the same time
     let mut eaten_plants = std::collections::HashSet::new();
 
     for (dino_pos, mut hungry) in &mut dinos {
-        for (plant_entity, plant_pos) in &plants {
+        for (plant_entity, plant_pos, mut plant) in plants.iter_mut() {
             if eaten_plants.contains(&plant_entity) {
                 continue;
             }
@@ -284,6 +284,8 @@ pub fn eating_system(
             // If the plant is immediately up, down, left, or right (distance == 1)
             if dist_x + dist_y <= 1 {
                 // 1. Delete the plant from the game
+                if plant.health == 0 {
+                
                 commands.entity(plant_entity).despawn();
                 
                 // 2. Free up the tile in the occupancy map
@@ -296,6 +298,10 @@ pub fn eating_system(
                 eaten_plants.insert(plant_entity);
                 
                 break; // Stop looking for plants this tick
+                }
+                else {
+                    plant.health = plant.health.saturating_sub(1);
+                }
             }
         }
     }

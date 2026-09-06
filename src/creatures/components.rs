@@ -27,7 +27,10 @@ pub struct Mortal {}
 pub struct Corpse;
 
 #[derive(Component)]
-pub struct Plant;
+pub struct Plant{
+    pub health: u32,
+
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
