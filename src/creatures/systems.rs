@@ -19,23 +19,14 @@ pub fn wander_system(
     let start = Instant::now();
 
     for (entity, mut position) in &mut dinos {
-        let mut target = Position {
-            x: position.x,
-            y: position.y,
-            z: position.z,
+        let Some((_plant_entity, plant_pos)) = find_closest_food(&position, &plants_query) else {
+            continue;
         };
 
-        if let Some((_plant_entity, plant_pos)) = find_closest_food(&position, &plants_query) {
-            let move_direction = find_closest_tide(&position, &plant_pos);
-            match move_direction {
-                Direction::North => target.y = target.y.saturating_sub(1),
-                Direction::South => target.y = target.y.saturating_add(1),
-                Direction::East => target.x = target.x.saturating_add(1),
-                Direction::West => target.x = target.x.saturating_sub(1),
-            }
-        }
+        let move_direction = find_closest_tile(&position, &plant_pos, &board, &occupancy);
+        let target = step(*position, move_direction);
 
-        if target != *position && board.is_inside(target) {
+        if target != *position && board.is_inside(target) && !occupancy.is_occupied(target) {
             occupancy.set(*position, None);
             occupancy.set(target, Some(entity));
             *position = target;
@@ -59,23 +50,68 @@ pub fn find_closest_food(
         })
         .map(|(entity, pos)| (entity, *pos))
 }
-pub fn find_closest_tide(wander_pos: &Position, target_pos: &Position) -> Direction {
+pub fn find_closest_tile(
+    wander_pos: &Position,
+    target_pos: &Position,
+    board: &Board,
+    occupancy: &Occupancy,
+) -> Direction {
     let dx = target_pos.x as isize - wander_pos.x as isize;
     let dy = target_pos.y as isize - wander_pos.y as isize;
 
-    if dx.abs() > dy.abs() {
+    let primary = if dx.abs() > dy.abs() {
         if dx > 0 {
             Direction::East
         } else {
             Direction::West
         }
+    } else if dy > 0 {
+        Direction::South
     } else {
+        Direction::North
+    };
+
+    if neighbor_free(wander_pos, primary, board, occupancy) {
+        return primary;
+    }
+
+    let secondary = if dx.abs() > dy.abs() {
         if dy > 0 {
             Direction::South
-        } else {
+        } else if dy < 0 {
             Direction::North
+        } else {
+            primary
         }
+    } else if dx > 0 {
+        Direction::East
+    } else if dx < 0 {
+        Direction::West
+    } else {
+        primary
+    };
+
+    if secondary != primary && neighbor_free(wander_pos, secondary, board, occupancy) {
+        secondary
+    } else {
+        primary
     }
+}
+
+fn step(pos: Position, dir: Direction) -> Position {
+    let mut next = pos;
+    match dir {
+        Direction::North => next.y = next.y.saturating_sub(1),
+        Direction::South => next.y = next.y.saturating_add(1),
+        Direction::East => next.x = next.x.saturating_add(1),
+        Direction::West => next.x = next.x.saturating_sub(1),
+    }
+    next
+}
+
+fn neighbor_free(pos: &Position, dir: Direction, board: &Board, occupancy: &Occupancy) -> bool {
+    let next = step(*pos, dir);
+    board.is_inside(next) && !occupancy.is_occupied(next)
 }
 
 pub fn mature_eggs_system(
@@ -142,14 +178,16 @@ pub fn death_system(
 
 pub fn decay_system(
     mut commands: Commands,
-    query: Query<(Entity, &mut Decay)>,
+    query: Query<(Entity, &Position, &mut Decay)>,
     mut performance: ResMut<SystemPerformance>,
+    mut occupancy: ResMut<Occupancy>,
 ) {
     let start = Instant::now();
-    for (e, mut d) in query {
+    for (e, p, mut d) in query {
         d.increase();
 
         if d.degradation >= d.degradation_threshold {
+            occupancy.set(*p, None);
             commands.entity(e).despawn();
         }
     }

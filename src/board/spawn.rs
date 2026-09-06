@@ -4,7 +4,7 @@ use crate::board::Board;
 
 pub fn spawn_board(mut commands: Commands) {
     commands.spawn(Board {
-        width: 1_0,
-        height: 1_0,
+        width: 50,
+        height: 50,
     });
 }

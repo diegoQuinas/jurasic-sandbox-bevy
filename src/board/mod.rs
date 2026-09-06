@@ -62,19 +62,31 @@ impl Occupancy {
 
     #[inline]
     pub fn set(&mut self, pos: Position, entity: Option<Entity>) {
-        let index = self.index(pos);
-        self.cells[index] = entity;
+        if let Some(index) = self.try_index(pos) {
+            self.cells[index] = entity;
+        }
     }
 
     #[inline]
     pub fn index(&self, pos: Position) -> usize {
-        pos.y * self.width + pos.x
+        self.try_index(pos)
+            .unwrap_or_else(|| panic!("occupancy index out of bounds: ({}, {})", pos.x, pos.y))
     }
 
     #[inline]
-    #[allow(dead_code)]
+    fn try_index(&self, pos: Position) -> Option<usize> {
+        if pos.x >= self.width || pos.y >= self.height {
+            None
+        } else {
+            Some(pos.y * self.width + pos.x)
+        }
+    }
+
+    #[inline]
     pub fn is_occupied(&self, pos: Position) -> bool {
-        self.cells[self.index(pos)].is_some()
+        self.try_index(pos)
+            .map(|index| self.cells[index].is_some())
+            .unwrap_or(true)
     }
 }
 
