@@ -130,7 +130,6 @@ impl Widget for BoardWidget<'_> {
                 let cell_y = inner.y + y as u16;
 
                 buf.set_string(cell_x, cell_y, glyph, Style::default().fg(color));
-                //tetsons
             }
         }
     }
