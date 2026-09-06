@@ -189,8 +189,9 @@ pub fn reproduction_system(
         if !reproduct {
             return;
         }
-        occupancy.set(*p, Some(entity));
+
         commands.spawn(egg_bundle(p.x, p.y, genes.clone()));
+        occupancy.set(*p, Some(entity));
     }
     performance.reproduction = start.elapsed().as_secs_f64() * 1000.00
 }

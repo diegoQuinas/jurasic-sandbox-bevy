@@ -40,11 +40,13 @@ pub enum Direction {
 pub struct Genes {
     pub starving_resistance: i32,
     pub glyph: String,
-    pub color: crossterm::style::Color,
+    pub color: ratatui::style::Color,
+    #[allow(dead_code)]
     pub family: FamilyId,
 }
 
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct FamilyId(pub u32);
 
 #[derive(Component)]

@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*};
 
-use crate::{board::BoardPlugin, creatures::CreaturesPlugin};
+use crate::{board::BoardPlugin, creatures::CreaturesPlugin, terminal::TuiPlugin};
 mod board;
 mod creatures;
-
+mod terminal;
 
 fn main() {
     App::new()
@@ -18,6 +18,7 @@ fn main() {
         .add_plugins(
             MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(1000))),
         )
+        .add_plugins(TuiPlugin)
         .run();
 }
 

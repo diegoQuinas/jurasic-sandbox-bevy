@@ -1,144 +1,137 @@
-use std::{
-    collections::HashMap,
-    io::{Write, stdout},
-};
+use std::collections::HashMap;
 
 use bevy::prelude::*;
-use crossterm::{
-    cursor::MoveTo,
-    execute,
-    terminal::{Clear, ClearType},
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    text::Line,
+    widgets::{Block, BorderType, Borders, Paragraph, Widget},
 };
 
 use crate::{
     Performance, SystemPerformance,
     board::{Board, Position, Renderable},
     creatures::components::{Corpse, Dinosaur, Egg, Genes, Plant},
+    terminal::TuiTerminal,
 };
 
 pub fn render(
+    mut terminal: ResMut<TuiTerminal>,
     board: Query<&Board>,
     entity_renderables: Query<(&Position, &Renderable)>,
     plants: Query<(), With<Plant>>,
     eggs: Query<(), With<Egg>>,
     corpses: Query<(), With<Corpse>>,
     dinos: Query<(), With<Dinosaur>>,
-    genes: Query<&Genes, With<Genes>>,
+    genes: Query<&Genes>,
     entities: Query<()>,
     performance: Res<Performance>,
-    systems_performance: Res<SystemPerformance>,
+    _systems_performance: Res<SystemPerformance>,
 ) {
-    let headless = false;
-    execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0),).unwrap();
-    if !headless {
-        let board = board.single().expect("Can't find board");
-        let visible_tiles: HashMap<(usize, usize), (usize, &String)> =
-            entity_renderables.iter().fold(
-                HashMap::<(usize, usize), (usize, &String)>::new(),
-                |mut visible, (position, renderable)| {
-                    visible
-                        .entry((position.x, position.y))
-                        .and_modify(|current| {
-                            if position.z > current.0 {
-                                *current = (position.z, &renderable.glyph)
-                            }
-                        })
-                        .or_insert((position.z, &renderable.glyph));
-                    visible
-                },
-            );
+    let board = board.single().expect("Can't find board");
 
-        let top_separator = {
-            let mut s = String::with_capacity(board.width * 4 + 2);
-
-            s.push('┏');
-
-            for _ in 0..board.width - 1 {
-                s.push_str("━━━━━");
-            }
-            s.push_str("━━━━┓");
-
-            s.push('\n');
-            s
-        };
-        let separator = {
-            let mut s = String::with_capacity(board.width * 5 + 2);
-
-            s.push('┃');
-
-            for _ in 0..board.width - 1 {
-                s.push_str("----┼");
-            }
-            s.push_str("----┃");
-
-            s.push('\n');
-            s
-        };
-        let bottom_separator = {
-            let mut s = String::with_capacity(board.width * 5 + 2);
-
-            s.push('┗');
-
-            for _ in 0..board.width - 1 {
-                s.push_str("━━━━━");
-            }
-            s.push_str("━━━━┛");
-
-            s.push('\n');
-            s
-        };
-
-        // Start rendering
-        print!("{}", &top_separator);
-        for y in 0..board.height {
-            print!("┃ ");
-            for x in 0..board.width {
-                let glyph = visible_tiles
-                    .get(&(x, y))
-                    .map(|(_, glyph)| glyph.as_str())
-                    .unwrap_or("  ");
-                if x == board.width - 1 {
-                    print!("{} ┃", glyph);
-                } else {
-                    print!("{} | ", glyph);
+    let mut visible: HashMap<(usize, usize), (usize, &Renderable)> = HashMap::new();
+    for (position, renderable) in entity_renderables.iter() {
+        visible
+            .entry((position.x, position.y))
+            .and_modify(|current| {
+                if position.z > current.0 {
+                    *current = (position.z, renderable)
                 }
-            }
-            if y == board.height - 1 {
-                print!("\n{}", &bottom_separator)
-            } else {
-                print!("\n{}", &separator);
+            })
+            .or_insert((position.z, renderable));
+    }
+
+    let dino_count = dinos.count();
+    let plant_count = plants.count();
+    let egg_count = eggs.count();
+    let corpse_count = corpses.count();
+    let entity_count = entities.count();
+    let _genes: Vec<Genes> = genes.iter().cloned().collect();
+    let totals = dino_count + plant_count + egg_count + corpse_count;
+    let ticks_per_second = performance.ticks_per_second;
+
+    terminal
+        .0
+        .draw(|frame| {
+            let area = frame.area();
+
+            let cols = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Length((board.width * 4 + 2) as u16),
+                    Constraint::Min(20),
+                ])
+                .split(area);
+
+            let board_widget = BoardWidget {
+                width: board.width,
+                height: board.height,
+                tiles: &visible,
+            };
+            frame.render_widget(board_widget, cols[0]);
+
+            let sidebar = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(8), Constraint::Min(3)])
+                .split(cols[1]);
+
+            let stats = Paragraph::new(vec![
+                Line::from(format!("Dinos:     {}", dino_count)),
+                Line::from(format!("Plants:    {}", plant_count)),
+                Line::from(format!("Eggs:      {}", egg_count)),
+                Line::from(format!("Corpses:   {}", corpse_count)),
+                Line::from(format!("Total:     {}", totals)),
+                Line::from(format!("Entities:  {}", entity_count)),
+                Line::from(format!("TPS:       {}", ticks_per_second)),
+            ])
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .title("Stats"),
+            );
+            frame.render_widget(stats, sidebar[0]);
+        })
+        .expect("failed to draw TUI");
+}
+
+struct BoardWidget<'a> {
+    width: usize,
+    height: usize,
+    tiles: &'a HashMap<(usize, usize), (usize, &'a Renderable)>,
+}
+
+impl Widget for BoardWidget<'_> {
+    fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
+        let board_width = self.width as u16 * 2 + 2;
+        let board_height = self.height as u16 + 2;
+
+        let board_area = Rect {
+            x: area.x,
+            y: area.y,
+            width: board_width.min(area.width),
+            height: board_height.min(area.height),
+        };
+
+        let block = Block::default().borders(Borders::ALL);
+        block.clone().render(board_area, buf);
+
+        let inner = block.inner(area);
+
+        for y in 0..self.height.min(inner.height as usize) {
+            for x in 0..self.width.min(inner.width as usize / 2) {
+                let (glyph, color) = self
+                    .tiles
+                    .get(&(x, y))
+                    .map(|(_, r)| (r.glyph.as_str(), r.color))
+                    .unwrap_or(("  ", Color::Reset));
+
+                let cell_x = inner.x + (x * 2) as u16;
+                let cell_y = inner.y + y as u16;
+
+                buf.set_string(cell_x, cell_y, glyph, Style::default().fg(color));
             }
         }
     }
-    let dinos = dinos.count();
-    let plants = plants.count();
-    let eggs = eggs.count();
-    let corpses = corpses.count();
-    let genes = genes
-        .iter()
-        .map(|g: &Genes| g.clone())
-        .collect::<Vec<Genes>>();
-    let totals: usize = [dinos, plants, eggs, corpses].iter().sum();
-    println!("Dinos: {}", dinos);
-    println!("Plants: {}", plants);
-    println!("Eggs: {}", eggs);
-    println!("Corpses: {}", corpses);
-    println!("Total : {}", totals);
-    println!("Entities: {}", entities.count());
-    println!("Ticks per second: {}", performance.ticks_per_second);
-    /*println!("=== Performance ===");
-    println!("eggs_mature: {:.4}", systems_performance.eggs_mature);
-    println!("wander: {:.4}", systems_performance.wander);
-    println!("reproduction: {:.4}", systems_performance.reproduction);
-    println!("hunger: {:.4}", systems_performance.hunger);
-    println!("starving: {:.4}", systems_performance.starving);
-    println!("spawn_plants: {:.4}", systems_performance.spawn_plants);
-    println!("decay: {:.4}", systems_performance.decay);*/
-    for gene in genes {
-        println!(
-            "Color {:?} resistance {:?} ",
-            gene.color, gene.starving_resistance
-        );
-    }
-    stdout().flush().unwrap();
 }
