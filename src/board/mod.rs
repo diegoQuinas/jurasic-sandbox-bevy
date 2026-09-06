@@ -72,6 +72,7 @@ impl Occupancy {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub fn is_occupied(&self, pos: Position) -> bool {
         self.cells[self.index(pos)].is_some()
     }
