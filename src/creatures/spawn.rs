@@ -2,8 +2,8 @@ use bevy::ecs::{
     bundle::Bundle,
     system::{Commands, Query},
 };
-use crossterm::style::{Color, Stylize};
 use rand::RngExt;
+use ratatui::style::Color;
 
 use crate::{
     board::{Board, Position, Renderable},
@@ -13,16 +13,16 @@ use crate::{
 const FAMILY_COUNT: u32 = 10;
 
 const PALETTE: [Color; 10] = [
+    Color::LightRed,
+    Color::LightGreen,
+    Color::LightYellow,
+    Color::LightBlue,
+    Color::LightMagenta,
+    Color::LightCyan,
+    Color::White,
     Color::Red,
     Color::Green,
-    Color::Yellow,
     Color::Blue,
-    Color::Magenta,
-    Color::Cyan,
-    Color::White,
-    Color::DarkRed,
-    Color::DarkGreen,
-    Color::DarkBlue,
 ];
 
 fn create_families() -> Vec<Genes> {
@@ -33,7 +33,7 @@ fn create_families() -> Vec<Genes> {
             let color = PALETTE[(id as usize - 1) % PALETTE.len()];
             Genes {
                 starving_resistance: rng.random_range(-5..=5),
-                glyph: "D ".with(color).to_string(),
+                glyph: String::from("D "),
                 color,
                 family: FamilyId(id),
             }
@@ -74,6 +74,7 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &Genes) -> impl Bundle {
         Position { x, y, z: 3 },
         Renderable {
             glyph: genes.glyph.clone(),
+            color: genes.color,
         },
         Mortal {},
         Wanderer {},
@@ -87,7 +88,8 @@ pub fn egg_bundle(x: usize, y: usize, genes: Genes) -> impl Bundle {
         Position { x, y, z: 1 },
         genes,
         Renderable {
-            glyph: String::from("🥚"),
+            glyph: String::from("0"),
+            color: Color::White,
         },
     )
 }
@@ -96,7 +98,8 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
     (
         Corpse,
         Renderable {
-            glyph: String::from("💀"),
+            glyph: String::from("%"),
+            color: Color::Red,
         },
         Position { x, y, z: 0 },
         Decay {
@@ -111,7 +114,8 @@ pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
         Plant,
         Position { x, y, z: 2 },
         Renderable {
-            glyph: String::from("🌱"),
+            glyph: String::from("♣"),
+            color: Color::Green,
         },
         Decay {
             degradation: 0,

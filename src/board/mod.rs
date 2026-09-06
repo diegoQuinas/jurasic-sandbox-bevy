@@ -35,6 +35,7 @@ pub struct Position {
 #[derive(Component)]
 pub struct Renderable {
     pub glyph: String,
+    pub color: ratatui::style::Color,
 }
 #[derive(Resource)]
 pub struct Occupancy {
@@ -54,6 +55,7 @@ impl Occupancy {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub fn get(&self, pos: Position) -> Option<Entity> {
         self.cells[self.index(pos)]
     }

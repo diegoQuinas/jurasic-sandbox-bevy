@@ -7,3 +7,4 @@ edition = "2024"
 bevy = { version = "0.19", default-features = false, features = ["debug"] }
 crossterm = "0.29.0"
 rand = "0.10.2"
+ratatui = "0.30.2"
