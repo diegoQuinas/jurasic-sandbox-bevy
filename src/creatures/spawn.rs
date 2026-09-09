@@ -31,21 +31,7 @@ fn create_families(rng: &mut ThreadRng) -> Vec<Genes> {
 
 pub fn spawn_creatures(board: Res<Board>, mut commands: Commands) {
     let mut rng = rand::rng();
-    let mut families = create_families(&mut rng);
-
-    // for y in 0..board.height {
-    //     for x in 0..board.width {
-    //         if rng.random_range(0..10) != 0 {
-    //             continue;
-    //         }
-
-    //         let Some(family) = families.pop() else {
-    //             return;
-    //         };
-
-    //         commands.spawn(dinosaur_bundle(x, y, &family));
-    //     }
-    // }
+    let families = create_families(&mut rng);
 
     for family in families {
         let x = rng.random_range(0..board.width);
