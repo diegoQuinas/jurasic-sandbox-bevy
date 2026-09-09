@@ -123,7 +123,7 @@ impl Widget for BoardWidget<'_> {
                 let (glyph, color) = self
                     .tiles
                     .get(&(x, y))
-                    .map(|(_, r)| (r.glyph.as_str(), r.color))
+                    .map(|(_, r)| (r.glyph, r.color))
                     .unwrap_or(("  ", Color::Reset));
 
                 let cell_x = inner.x + (x * 2) as u16;

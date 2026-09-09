@@ -2,7 +2,7 @@ use bevy::ecs::{
     bundle::Bundle,
     system::{Commands, Res},
 };
-use rand::RngExt;
+use rand::{RngExt, rngs::ThreadRng};
 use ratatui::style::Color;
 
 use crate::{
@@ -10,30 +10,18 @@ use crate::{
     creatures::components::*,
 };
 
-const FAMILY_COUNT: u32 = 10;
+pub const STARTING_FAMILIES: u32 = 1;
 
-const PALETTE: [Color; 10] = [
-    Color::LightRed,
-    Color::LightGreen,
-    Color::LightYellow,
-    Color::LightBlue,
-    Color::LightMagenta,
-    Color::LightCyan,
-    Color::White,
-    Color::Red,
-    Color::Green,
-    Color::Blue,
-];
-
-fn create_families() -> Vec<Genes> {
-    let mut rng = rand::rng();
-
-    (1..=FAMILY_COUNT)
+fn create_families(rng: &mut ThreadRng) -> Vec<Genes> {
+    (1..=STARTING_FAMILIES)
         .map(|id| {
-            let color = PALETTE[(id as usize - 1) % PALETTE.len()];
+            let color = Color::Rgb(
+                rng.random_range(0..=255),
+                rng.random_range(0..=255),
+                rng.random_range(0..=255),
+            );
             Genes {
                 starving_resistance: rng.random_range(-50..=50),
-                glyph: String::from("D "),
                 color,
                 family: FamilyId(id),
             }
@@ -43,20 +31,26 @@ fn create_families() -> Vec<Genes> {
 
 pub fn spawn_creatures(board: Res<Board>, mut commands: Commands) {
     let mut rng = rand::rng();
-    let mut families = create_families();
+    let mut families = create_families(&mut rng);
 
-    for y in 0..board.height {
-        for x in 0..board.width {
-            if rng.random_range(0..10) != 0 {
-                continue;
-            }
+    // for y in 0..board.height {
+    //     for x in 0..board.width {
+    //         if rng.random_range(0..10) != 0 {
+    //             continue;
+    //         }
 
-            let Some(family) = families.pop() else {
-                return;
-            };
+    //         let Some(family) = families.pop() else {
+    //             return;
+    //         };
 
-            commands.spawn(dinosaur_bundle(x, y, &family));
-        }
+    //         commands.spawn(dinosaur_bundle(x, y, &family));
+    //     }
+    // }
+
+    for family in families {
+        let x = rng.random_range(0..board.width);
+        let y = rng.random_range(0..board.height);
+        commands.spawn(dinosaur_bundle(x, y, &family));
     }
 }
 
@@ -72,7 +66,7 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &Genes) -> impl Bundle {
         Health(10),
         Position { x, y, z: 3 },
         Renderable {
-            glyph: genes.glyph.clone(),
+            glyph: "D",
             color: genes.color,
         },
         Mortal {},
@@ -87,7 +81,7 @@ pub fn egg_bundle(x: usize, y: usize, genes: Genes) -> impl Bundle {
         Position { x, y, z: 1 },
         genes,
         Renderable {
-            glyph: String::from("0"),
+            glyph: "0",
             color: Color::White,
         },
     )
@@ -97,7 +91,7 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
     (
         Corpse,
         Renderable {
-            glyph: String::from("%"),
+            glyph: "%",
             color: Color::Red,
         },
         Position { x, y, z: 0 },
@@ -113,7 +107,7 @@ pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
         Plant { health: 7 },
         Position { x, y, z: 2 },
         Renderable {
-            glyph: String::from("🌳"),
+            glyph: "🌳",
             color: Color::Green,
         },
         Decay {

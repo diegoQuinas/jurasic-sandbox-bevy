@@ -27,9 +27,8 @@ pub struct Mortal {}
 pub struct Corpse;
 
 #[derive(Component)]
-pub struct Plant{
+pub struct Plant {
     pub health: u32,
-
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -42,7 +41,6 @@ pub enum Direction {
 #[derive(Component, Clone, Debug)]
 pub struct Genes {
     pub starving_resistance: i32,
-    pub glyph: String,
     pub color: ratatui::style::Color,
     #[allow(dead_code)]
     pub family: FamilyId,
