@@ -14,7 +14,7 @@ use crate::{
 
 pub fn maturing_system(mut query: Query<&mut Maturity>) {
     for mut maturity in &mut query {
-        maturity.increase(0.01);
+        maturity.increase(0.001);
     }
 }
 

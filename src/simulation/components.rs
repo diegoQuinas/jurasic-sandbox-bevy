@@ -157,7 +157,7 @@ impl DinoState {
             DinoState::LayingEgg
         } else if hunger > 0.5 {
             DinoState::SeekingFood
-        } else if desire > 0.3 && maturity > 0.3 {
+        } else if desire >= 1.0 && maturity > 0.3 {
             DinoState::SeekingPartner
         } else if health < 1.0 {
             DinoState::Healing
