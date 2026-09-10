@@ -110,7 +110,7 @@ pub fn spawn_random_plants_system(mut commands: Commands, mut world: WorldMap) {
     if !world.is_free(pos) {
         return;
     }
-    let is_plant = rng.random_bool(0.75);
+    let is_plant = rng.random_bool(0.10);
 
     if is_plant {
         let plant_entity = commands.spawn(plant_bundle(x, y)).id();

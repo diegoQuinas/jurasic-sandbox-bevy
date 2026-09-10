@@ -83,7 +83,7 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
         Corpse,
         Renderable {
             glyph: "%",
-            color: Color::Red,
+            color: Color::Gray,
         },
         Position { x, y, z: 0 },
         Decay {
@@ -114,7 +114,7 @@ pub fn grass_bundle(x: usize, y: usize) -> impl Bundle {
     (
         Position { x, y, z: 1 },
         Renderable {
-            glyph: r#"""#,
+            glyph: r#"."#,
             color: Color::Rgb(color.0, color.1, color.2),
         },
         Decay {
