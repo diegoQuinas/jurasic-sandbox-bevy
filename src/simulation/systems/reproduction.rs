@@ -5,7 +5,7 @@ use crate::{
     simulation::{
         components::{DinoState, DinosaurStats, Direction, Gender, Pregnant},
         genetics::blend_dino_stats,
-        movement::{find_closest_target_reproduction, find_closest_tile, manhattan, step},
+        movement::{chebyshev, find_closest_target_reproduction, find_closest_tile, step},
         spawn::egg_bundle,
     },
     world::{Position, WorldMap},
@@ -33,7 +33,7 @@ pub fn reproduction_system(
             continue;
         };
 
-        if manhattan(&pos, &target_pos) <= 1 {
+        if chebyshev(&pos, &target_pos) <= 1 {
             if !gender.0 {
                 let son = blend_dino_stats(&target_stats, origin_stats);
                 commands.entity(origin_entity).insert(Pregnant(son));
@@ -62,12 +62,7 @@ pub fn lay_eggs_system(
         }
 
         let mut spawn_pos = None;
-        let mut directions = [
-            Direction::North,
-            Direction::South,
-            Direction::East,
-            Direction::West,
-        ];
+        let mut directions = Direction::ALL;
         directions.shuffle(&mut rng());
 
         for dir in directions {
