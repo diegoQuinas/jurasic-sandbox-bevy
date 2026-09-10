@@ -16,16 +16,19 @@ fn create_families(rng: &mut ThreadRng) -> Vec<DinosaurStats> {
 
     (1..=STARTING_FAMILIES)
         .map(|_| {
+            let redness = rng.random_range(25..=255);
+            let metabolism = (redness as f64) / 255.0; // More hungry ones are red
             let color = (
-                rng.random_range(0..=255),
+                redness,
                 rng.random_range(0..=255),
                 rng.random_range(0..=255),
             );
-            let starvation_resistance = rng.random_range(-50..=50) as f64 / 100.0;
+            let starvation_resistance: f64 = rng.random_range(0.5..1.0);
             DinosaurStats {
                 generation: starting_generation_number,
                 color,
                 starvation_resistance,
+                metabolism,
             }
         })
         .collect()
@@ -49,7 +52,7 @@ pub fn spawn_creatures(
 
 pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle {
     (
-        Hunger(1.0),
+        Hunger(0.0),
         Health(1.0),
         Position { x, y, z: 3 },
         Renderable {

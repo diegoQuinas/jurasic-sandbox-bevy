@@ -12,9 +12,10 @@ use crate::{
     world::{Occupancy, Position, WorldMap},
 };
 
-pub fn maturing_system(mut query: Query<&mut Maturity>) {
-    for mut maturity in &mut query {
-        maturity.increase(0.001);
+pub fn maturing_system(query: Query<(&mut Maturity, &DinosaurStats)>) {
+    for (mut maturity, stats) in query {
+        let increasement = stats.metabolism * 0.001;
+        maturity.increase(increasement);
     }
 }
 
@@ -37,9 +38,10 @@ pub fn mature_eggs_system(
     performance.eggs_mature = start.elapsed().as_secs_f64() * 1000.00
 }
 
-pub fn hunger_system(query: Query<&mut Hunger>) {
-    for mut hunger in query {
-        hunger.increase(0.01);
+pub fn hunger_system(query: Query<(&mut Hunger, &DinosaurStats)>) {
+    for (mut hunger, stats) in query {
+        let increasement = stats.metabolism * 0.005;
+        hunger.increase(increasement);
     }
 }
 

@@ -131,6 +131,7 @@ pub struct DinosaurStats {
     pub generation: u32,
     pub color: (u8, u8, u8),
     pub starvation_resistance: f64,
+    pub metabolism: f64,
 }
 
 #[derive(Component, Default, Eq, PartialEq, Debug, Clone, Copy)]

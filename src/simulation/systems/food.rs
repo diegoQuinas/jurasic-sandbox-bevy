@@ -103,19 +103,21 @@ pub fn herbivore_eating_system(
 pub fn spawn_random_plants_system(mut commands: Commands, mut world: WorldMap) {
     let mut rng = rng();
     let (width, height) = world.dimensions();
-    let x = rng.random_range(0..width);
-    let y = rng.random_range(0..height);
-    let pos = Position { x, y, z: 2 };
+    for _ in 0..5 {
+        let x = rng.random_range(0..width);
+        let y = rng.random_range(0..height);
+        let pos = Position { x, y, z: 2 };
 
-    if !world.is_free(pos) {
-        return;
-    }
-    let is_plant = rng.random_bool(0.10);
+        if !world.is_free(pos) {
+            return;
+        }
+        let is_plant = rng.random_bool(0.10);
 
-    if is_plant {
-        let plant_entity = commands.spawn(plant_bundle(x, y)).id();
-        world.set_occupied(plant_entity, pos);
-    } else {
-        let _grass_entity = commands.spawn(grass_bundle(x, y));
+        if is_plant {
+            let plant_entity = commands.spawn(plant_bundle(x, y)).id();
+            world.set_occupied(plant_entity, pos);
+        } else {
+            let _grass_entity = commands.spawn(grass_bundle(x, y));
+        }
     }
 }
