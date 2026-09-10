@@ -1,6 +1,6 @@
 use bevy::ecs::system::Commands;
 
-use crate::board::Board;
+use super::Board;
 
 pub fn spawn_board(mut commands: Commands) {
     commands.spawn(Board {

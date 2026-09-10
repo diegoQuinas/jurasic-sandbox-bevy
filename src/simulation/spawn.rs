@@ -1,67 +1,68 @@
 use bevy::ecs::{
     bundle::Bundle,
-    system::{Commands, Res},
+    system::{Commands, Res, ResMut},
 };
-use rand::{RngExt, rngs::ThreadRng};
+use rand::{RngExt, rng, rngs::ThreadRng};
 use ratatui::style::Color;
 
-use crate::{
-    board::{Board, Position, Renderable},
-    creatures::components::*,
-};
+use crate::world::{Board, Occupancy, Position, Renderable};
 
-pub const STARTING_FAMILIES: u32 = 1;
+use super::components::*;
 
-fn create_families(rng: &mut ThreadRng) -> Vec<Genes> {
+pub const STARTING_FAMILIES: u32 = 100;
+
+fn create_families(rng: &mut ThreadRng) -> Vec<DinosaurStats> {
+    let starting_generation_number = 0;
+
     (1..=STARTING_FAMILIES)
-        .map(|id| {
-            let color = Color::Rgb(
+        .map(|_| {
+            let color = (
                 rng.random_range(0..=255),
                 rng.random_range(0..=255),
                 rng.random_range(0..=255),
             );
-            Genes {
-                starving_resistance: rng.random_range(-50..=50),
+            let starvation_resistance = rng.random_range(-50..=50) as f64 / 100.0;
+            let reproduction_desire = rng.random_range(30..=100) as f64 / 100.0;
+            DinosaurStats {
+                generation: starting_generation_number,
                 color,
-                family: FamilyId(id),
+                starvation_resistance,
+                reproduction_desire,
             }
         })
         .collect()
 }
 
-pub fn spawn_creatures(board: Res<Board>, mut commands: Commands) {
+pub fn spawn_creatures(board: Res<Board>, mut occupancy: ResMut<Occupancy>, mut commands: Commands) {
     let mut rng = rand::rng();
     let families = create_families(&mut rng);
 
     for family in families {
         let x = rng.random_range(0..board.width);
         let y = rng.random_range(0..board.height);
-        commands.spawn(dinosaur_bundle(x, y, &family));
+        let entity = commands.spawn(dinosaur_bundle(x, y, &family)).id();
+        occupancy.set(Position { x, y, z: 3 }, Some(entity));
     }
 }
 
-pub fn dinosaur_bundle(x: usize, y: usize, genes: &Genes) -> impl Bundle {
-    let n = 75;
-    let n = (n + genes.starving_resistance).clamp(25, 125) as u32;
+pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle {
     (
-        Dinosaur {},
-        Hungry {
-            hunger: 0,
-            starvation_threshold: n,
-        },
-        Health(10),
+        Hunger(1.0),
+        Health(1.0),
         Position { x, y, z: 3 },
         Renderable {
             glyph: "D",
-            color: genes.color,
+            color: Color::Rgb(genes.color.0, genes.color.1, genes.color.2),
         },
         Mortal {},
-        Wanderer {},
+        Herbivore {},
+        DinoState::default(),
+        Gender(rng().random()),
         genes.clone(),
     )
 }
 
-pub fn egg_bundle(x: usize, y: usize, genes: Genes) -> impl Bundle {
+pub fn egg_bundle(x: usize, y: usize, genes: DinosaurStats) -> impl Bundle {
     (
         Egg { age: 0 },
         Position { x, y, z: 1 },

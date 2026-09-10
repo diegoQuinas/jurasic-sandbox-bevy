@@ -3,14 +3,16 @@ use bevy::{
     ecs::schedule::IntoScheduleConfigs,
 };
 
-use crate::{
-    StartupSet,
-    creatures::{spawn::spawn_creatures, systems::*},
-};
+use crate::app::StartupSet;
 
-pub mod components;
-pub mod spawn;
-pub mod systems;
+use super::{
+    spawn::spawn_creatures,
+    systems::{
+        death_system, decay_system, dino_decision_system, herbivore_eating_system, hunger_system,
+        lay_eggs_system, mature_eggs_system, reproduction_system, seek_herbivore_food_system,
+        spawn_random_plants_system, starving_system,
+    },
+};
 
 pub struct CreaturesPlugin;
 
@@ -21,14 +23,16 @@ impl Plugin for CreaturesPlugin {
                 Update,
                 (
                     mature_eggs_system,
-                    wander_system,
-                    eating_system,
+                    dino_decision_system,
+                    seek_herbivore_food_system,
+                    herbivore_eating_system,
                     reproduction_system,
+                    lay_eggs_system,
                     hunger_system,
                     starving_system,
                     death_system,
                     decay_system,
-                    spawn_random_plants,
+                    spawn_random_plants_system,
                 )
                     .chain(),
             );

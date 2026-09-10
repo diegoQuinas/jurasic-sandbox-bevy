@@ -9,10 +9,10 @@ use ratatui::{
 };
 
 use crate::{
-    Performance, SystemPerformance,
-    board::{Board, Position, Renderable},
-    creatures::components::{Corpse, Dinosaur, Egg, Genes, Plant},
-    terminal::TuiTerminal,
+    app::{Performance, SystemPerformance},
+    simulation::{Corpse, Egg, Plant},
+    ui::TuiTerminal,
+    world::{Board, Position, Renderable},
 };
 
 pub fn render(
@@ -22,12 +22,11 @@ pub fn render(
     plants: Query<(), With<Plant>>,
     eggs: Query<(), With<Egg>>,
     corpses: Query<(), With<Corpse>>,
-    dinos: Query<(), With<Dinosaur>>,
-    genes: Query<&Genes>,
     entities: Query<()>,
     performance: Res<Performance>,
     _systems_performance: Res<SystemPerformance>,
 ) {
+    // One glyph per (x, y): higher `z` wins (dino over plant over corpse).
     let mut visible: HashMap<(usize, usize), (usize, &Renderable)> = HashMap::new();
     for (position, renderable) in entity_renderables.iter() {
         visible
@@ -40,13 +39,10 @@ pub fn render(
             .or_insert((position.z, renderable));
     }
 
-    let dino_count = dinos.count();
     let plant_count = plants.count();
     let egg_count = eggs.count();
     let corpse_count = corpses.count();
     let entity_count = entities.count();
-    let _genes: Vec<Genes> = genes.iter().cloned().collect();
-    let totals = dino_count + plant_count + egg_count + corpse_count;
     let ticks_per_second = performance.ticks_per_second;
 
     terminal
@@ -75,14 +71,11 @@ pub fn render(
                 .split(cols[1]);
 
             let stats = Paragraph::new(vec![
-                Line::from(format!("Dinos:     {}", dino_count)),
                 Line::from(format!("Plants:    {}", plant_count)),
                 Line::from(format!("Eggs:      {}", egg_count)),
                 Line::from(format!("Corpses:   {}", corpse_count)),
-                Line::from(format!("Total:     {}", totals)),
                 Line::from(format!("Entities:  {}", entity_count)),
                 Line::from(format!("TPS:       {}", ticks_per_second)),
-                Line::from(format!("Genes:     {:?}", genes)),
             ])
             .block(
                 Block::default()

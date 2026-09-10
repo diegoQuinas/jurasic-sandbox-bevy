@@ -1,4 +1,3 @@
-// terminal.rs
 use std::{
     io::{self, Stdout},
     time::Duration,
@@ -13,12 +12,13 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 
+use super::render;
+
 #[derive(Resource)]
 pub struct TuiTerminal(pub Terminal<CrosstermBackend<Stdout>>);
 
 impl Drop for TuiTerminal {
     fn drop(&mut self) {
-        // se ejecuta al eliminar el recurso (ej. al cerrar la app)
         let _ = disable_raw_mode();
         let _ = execute!(self.0.backend_mut(), LeaveAlternateScreen);
         let _ = self.0.show_cursor();
@@ -31,6 +31,7 @@ fn restore_terminal() {
 }
 
 pub fn setup_terminal(mut commands: Commands) {
+    // Panic hook must restore the TTY; otherwise a crash leaves raw mode on.
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         restore_terminal();
@@ -50,7 +51,7 @@ pub struct TuiPlugin;
 impl Plugin for TuiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_terminal)
-            .add_systems(Update, handle_quit_input);
+            .add_systems(Update, (handle_quit_input, render));
     }
 }
 
