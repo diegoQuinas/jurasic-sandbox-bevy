@@ -7,7 +7,7 @@ use crate::{
     simulation::{
         components::{DinoState, Herbivore, Hunger, Plant},
         movement::{chebyshev, find_closest_tile, step},
-        spawn::plant_bundle,
+        spawn::{grass_bundle, plant_bundle},
     },
     world::{Position, WorldMap},
 };
@@ -101,15 +101,21 @@ pub fn herbivore_eating_system(
 }
 
 pub fn spawn_random_plants_system(mut commands: Commands, mut world: WorldMap) {
+    let mut rng = rng();
     let (width, height) = world.dimensions();
-    let x = rng().random_range(0..width);
-    let y = rng().random_range(0..height);
+    let x = rng.random_range(0..width);
+    let y = rng.random_range(0..height);
     let pos = Position { x, y, z: 2 };
 
     if !world.is_free(pos) {
         return;
     }
+    let is_plant = rng.random_bool(0.75);
 
-    let entity = commands.spawn(plant_bundle(x, y)).id();
-    world.set_occupied(entity, pos);
+    if is_plant {
+        let plant_entity = commands.spawn(plant_bundle(x, y)).id();
+        world.set_occupied(plant_entity, pos);
+    } else {
+        let _grass_entity = commands.spawn(grass_bundle(x, y));
+    }
 }

@@ -94,16 +94,42 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
 }
 
 pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
+    let color = random_green();
     (
         Plant { health: 7 },
         Position { x, y, z: 2 },
         Renderable {
             glyph: "🌳",
-            color: Color::Green,
+            color: Color::Rgb(color.0, color.1, color.2),
         },
         Decay {
             degradation: 0,
-            degradation_threshold: 100,
+            degradation_threshold: 1000,
         },
     )
+}
+
+pub fn grass_bundle(x: usize, y: usize) -> impl Bundle {
+    let color = random_green();
+    (
+        Position { x, y, z: 1 },
+        Renderable {
+            glyph: r#"""#,
+            color: Color::Rgb(color.0, color.1, color.2),
+        },
+        Decay {
+            degradation: 0,
+            degradation_threshold: 75,
+        },
+    )
+}
+
+fn random_green() -> (u8, u8, u8) {
+    let mut rng = rand::rng();
+
+    let r = rng.random_range(20..100);
+    let g = rng.random_range(120..=255);
+    let b = rng.random_range(20..100);
+
+    (r, g, b)
 }
