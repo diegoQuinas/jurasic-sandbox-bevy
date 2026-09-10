@@ -6,7 +6,7 @@ use rand::{RngExt, rng};
 use crate::{
     simulation::{
         components::{DinoState, Herbivore, Hunger, Plant},
-        movement::{find_closest_tile, manhattan, step},
+        movement::{chebyshev, find_closest_tile, step},
         spawn::plant_bundle,
     },
     world::{Position, WorldMap},
@@ -25,7 +25,7 @@ pub fn seek_herbivore_food_system(
     for (dino_e, dino_pos, _) in dinos.iter() {
         if let Some((plant_e, _)) = plants
             .iter()
-            .find(|(_, plant_pos)| manhattan(dino_pos, plant_pos) <= 1)
+            .find(|(_, plant_pos)| chebyshev(dino_pos, plant_pos) <= 1)
         {
             plant_owner.entry(*plant_e).or_insert(dino_e);
             reserved.insert(*plant_e);
@@ -38,7 +38,7 @@ pub fn seek_herbivore_food_system(
         }
 
         let eating_own_plant = plants.iter().any(|(plant_e, plant_pos)| {
-            manhattan(&dino_pos, plant_pos) <= 1 && plant_owner.get(plant_e) == Some(&dino_entity)
+            chebyshev(&dino_pos, plant_pos) <= 1 && plant_owner.get(plant_e) == Some(&dino_entity)
         });
         if eating_own_plant {
             continue;
@@ -47,11 +47,11 @@ pub fn seek_herbivore_food_system(
         let closest_free = plants
             .iter()
             .filter(|(plant_e, _)| !reserved.contains(plant_e))
-            .min_by_key(|(_, pos)| manhattan(&dino_pos, pos))
+            .min_by_key(|(_, pos)| chebyshev(&dino_pos, pos))
             .copied();
         let closest_any = plants
             .iter()
-            .min_by_key(|(_, pos)| manhattan(&dino_pos, pos))
+            .min_by_key(|(_, pos)| chebyshev(&dino_pos, pos))
             .copied();
         let Some((plant_entity, target_pos)) = closest_free.or(closest_any) else {
             continue;
@@ -85,7 +85,7 @@ pub fn herbivore_eating_system(
             }
 
             // Adjacent or same tile. Plants occupy their cell, so dinos usually eat from next door.
-            if manhattan(dino_pos, plant_pos) <= 1 {
+            if chebyshev(dino_pos, plant_pos) <= 1 {
                 eaten_plants.insert(plant_entity);
                 if plant.health == 0 {
                     commands.entity(plant_entity).despawn();

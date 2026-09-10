@@ -62,6 +62,23 @@ pub enum Direction {
     South,
     East,
     West,
+    NorthEast,
+    NorthWest,
+    SouthEast,
+    SouthWest,
+}
+
+impl Direction {
+    pub const ALL: [Direction; 8] = [
+        Direction::North,
+        Direction::South,
+        Direction::East,
+        Direction::West,
+        Direction::NorthEast,
+        Direction::NorthWest,
+        Direction::SouthEast,
+        Direction::SouthWest,
+    ];
 }
 
 #[derive(Component, Clone, Copy, Debug)]
