@@ -2,10 +2,6 @@ use super::components::DinosaurStats;
 
 pub fn blend_dino_stats(father: &DinosaurStats, mother: &DinosaurStats) -> DinosaurStats {
     DinosaurStats {
-        reproduction_desire: blend_average_f64(
-            father.reproduction_desire,
-            mother.reproduction_desire,
-        ),
         color: blend_colors(father.color, mother.color),
         starvation_resistance: blend_average_f64(
             father.starvation_resistance,

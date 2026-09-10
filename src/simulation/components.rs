@@ -9,6 +9,9 @@ pub struct Egg {
 pub struct Health(pub f64);
 
 impl Health {
+    pub fn health(&self) -> f64 {
+        self.0
+    }
     pub fn decrease(&mut self, amount: f64) {
         if self.0 > 0.0 {
             self.0 -= amount;
@@ -16,8 +19,32 @@ impl Health {
             self.0 = 0.0;
         }
     }
-    pub fn is_dead(&self) -> bool {
-        self.0 <= 0.0
+    pub fn increase(&mut self, amount: f64) {
+        if self.0 < 1.0 {
+            self.0 += amount;
+        } else {
+            self.0 = 1.0;
+        }
+    }
+}
+#[derive(Component, Copy, Clone, Debug)]
+pub struct Desire(pub f64);
+
+impl Desire {
+    pub fn desire(&self) -> f64 {
+        self.0
+    }
+
+    pub fn set_to_zero(&mut self) {
+        self.0 = 0.0;
+    }
+
+    pub fn increase(&mut self, amount: f64) {
+        if self.0 < 1.0 {
+            self.0 += amount;
+        } else {
+            self.0 = 1.0;
+        }
     }
 }
 
@@ -41,6 +68,24 @@ impl Hunger {
     pub fn decrease(&mut self, amount: f64) {
         if self.0 > 0.0 {
             self.0 -= amount;
+        }
+    }
+}
+
+/// 0 = newborn, 1 = old.
+#[derive(Component)]
+pub struct Maturity(pub f64);
+
+impl Maturity {
+    pub fn maturity(&self) -> f64 {
+        self.0
+    }
+
+    pub fn increase(&mut self, amount: f64) {
+        if self.0 < 1.0 {
+            self.0 += amount;
+        } else {
+            self.0 = 1.0;
         }
     }
 }
@@ -86,16 +131,17 @@ pub struct DinosaurStats {
     pub generation: u32,
     pub color: (u8, u8, u8),
     pub starvation_resistance: f64,
-    pub reproduction_desire: f64,
 }
 
 #[derive(Component, Default, Eq, PartialEq, Debug, Clone, Copy)]
 pub enum DinoState {
     #[default]
     Wandering,
+    Healing,
     SeekingPartner,
     SeekingFood,
     LayingEgg,
+    Dieing,
 }
 
 /// `true` = male, `false` = female. Females receive `Pregnant` on mating.
@@ -104,13 +150,17 @@ pub struct Gender(pub bool);
 
 impl DinoState {
     /// Food always wins over mating; a pregnant dino only lays.
-    pub fn decide(stats: &DinosaurStats, is_pregnant: bool, hunger: f64) -> Self {
-        if is_pregnant {
+    pub fn decide(is_pregnant: bool, hunger: f64, maturity: f64, health: f64, desire: f64) -> Self {
+        if maturity >= 1.0 || health <= 0.0 {
+            DinoState::Dieing
+        } else if is_pregnant {
             DinoState::LayingEgg
         } else if hunger > 0.5 {
             DinoState::SeekingFood
-        } else if stats.reproduction_desire > 0.3 {
+        } else if desire > 0.3 && maturity > 0.3 {
             DinoState::SeekingPartner
+        } else if health < 1.0 {
+            DinoState::Healing
         } else {
             DinoState::Wandering
         }

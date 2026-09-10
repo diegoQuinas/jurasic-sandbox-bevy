@@ -5,11 +5,18 @@ use bevy::prelude::*;
 use crate::{
     app::SystemPerformance,
     simulation::{
+        DinoState, Maturity,
         components::{Decay, DinosaurStats, Egg, Health, Hunger, Mortal},
         spawn::{corpse_bundle, dinosaur_bundle},
     },
-    world::{Occupancy, Position},
+    world::{Occupancy, Position, WorldMap},
 };
+
+pub fn maturing_system(mut query: Query<&mut Maturity>) {
+    for mut maturity in &mut query {
+        maturity.increase(0.01);
+    }
+}
 
 pub fn mature_eggs_system(
     mut commands: Commands,
@@ -46,12 +53,27 @@ pub fn starving_system(query: Query<(&Hunger, &DinosaurStats, &mut Health)>) {
 
 pub fn death_system(
     mut commands: Commands,
-    query: Query<(Entity, &Health, &Position), With<Mortal>>,
+    query: Query<(Entity, &Position, &DinoState), With<Mortal>>,
+    mut world: WorldMap,
 ) {
-    for (e, h, p) in query {
-        if h.is_dead() {
-            commands.spawn(corpse_bundle(p.x, p.y));
+    for (e, p, s) in query {
+        if *s != DinoState::Dieing {
+            continue;
+        } else {
+            let new_corpse = commands.spawn(corpse_bundle(p.x, p.y)).id();
+            world.set_free(*p);
             commands.entity(e).despawn();
+            world.set_occupied(new_corpse, *p);
+        }
+    }
+}
+
+pub fn healing_system(query: Query<(&mut Health, &DinoState)>) {
+    for (mut health, state) in query {
+        if *state != DinoState::Healing {
+            continue;
+        } else {
+            health.increase(0.01);
         }
     }
 }

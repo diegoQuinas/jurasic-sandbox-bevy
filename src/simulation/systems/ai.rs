@@ -1,11 +1,27 @@
 use bevy::prelude::*;
 
-use crate::simulation::components::{DinoState, DinosaurStats, Hunger, Pregnant};
+use crate::simulation::{
+    Desire, Health, Maturity,
+    components::{DinoState, Hunger, Pregnant},
+};
 
 pub fn dino_decision_system(
-    mut dinos: Query<(&DinosaurStats, &Hunger, &mut DinoState, Option<&Pregnant>)>,
+    mut dinos: Query<(
+        &Hunger,
+        &Maturity,
+        &Health,
+        &mut DinoState,
+        Option<&Pregnant>,
+        &Desire,
+    )>,
 ) {
-    for (dino_stats, hunger, mut dino_state, pregnant) in &mut dinos {
-        *dino_state = DinoState::decide(dino_stats, pregnant.is_some(), hunger.hunger());
+    for (hunger, maturity, health, mut dino_state, pregnant, desire) in &mut dinos {
+        *dino_state = DinoState::decide(
+            pregnant.is_some(),
+            hunger.hunger(),
+            maturity.maturity(),
+            health.health(),
+            desire.desire(),
+        );
     }
 }

@@ -22,18 +22,20 @@ fn create_families(rng: &mut ThreadRng) -> Vec<DinosaurStats> {
                 rng.random_range(0..=255),
             );
             let starvation_resistance = rng.random_range(-50..=50) as f64 / 100.0;
-            let reproduction_desire = rng.random_range(30..=100) as f64 / 100.0;
             DinosaurStats {
                 generation: starting_generation_number,
                 color,
                 starvation_resistance,
-                reproduction_desire,
             }
         })
         .collect()
 }
 
-pub fn spawn_creatures(board: Res<Board>, mut occupancy: ResMut<Occupancy>, mut commands: Commands) {
+pub fn spawn_creatures(
+    board: Res<Board>,
+    mut occupancy: ResMut<Occupancy>,
+    mut commands: Commands,
+) {
     let mut rng = rand::rng();
     let families = create_families(&mut rng);
 
@@ -56,6 +58,8 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle
         },
         Mortal {},
         Herbivore {},
+        Maturity(0.0),
+        Desire(0.0),
         DinoState::default(),
         Gender(rng().random()),
         genes.clone(),
