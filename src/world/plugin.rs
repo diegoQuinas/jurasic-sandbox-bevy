@@ -1,23 +1,18 @@
-use bevy::{
-    app::{App, Plugin, Startup},
-    ecs::schedule::IntoScheduleConfigs,
-};
+use bevy::app::{App, Plugin};
 
-use crate::app::StartupSet;
-
-use super::{Board, Occupancy, spawn_board};
+use super::{Board, Occupancy};
 
 pub struct BoardPlugin;
 
 impl Plugin for BoardPlugin {
     fn build(&self, app: &mut App) {
-        // Insert before Startup: Commands.insert_resource would not be visible
-        // to spawn_creatures in the same schedule without an extra ApplyDeferred.
-        let (width, height) = {
-            let board = app.world().resource::<Board>();
-            (board.width, board.height)
+        // Insert before Startup so spawn_creatures can read Board/Occupancy
+        // in the same schedule without an extra ApplyDeferred.
+        let board = Board {
+            width: 25,
+            height: 25,
         };
-        app.insert_resource(Occupancy::new(width, height));
-        app.add_systems(Startup, spawn_board.in_set(StartupSet::Board));
+        app.insert_resource(Occupancy::new(board.width, board.height));
+        app.insert_resource(board);
     }
 }

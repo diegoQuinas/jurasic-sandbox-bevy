@@ -23,5 +23,5 @@ pub struct Position {
 #[derive(Component)]
 pub struct Renderable {
     pub glyph: &'static str,
-    pub color: ratatui::style::Color,
+    pub color: (u8, u8, u8),
 }

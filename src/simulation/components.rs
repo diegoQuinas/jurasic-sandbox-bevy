@@ -176,12 +176,18 @@ pub struct Pregnant(pub DinosaurStats);
 
 #[derive(Component)]
 pub struct Decay {
-    pub degradation_threshold: u32,
-    pub degradation: u32,
+    pub degradation_threshold: f64,
+    pub degradation: f64,
 }
+#[derive(Component)]
+pub struct Grass;
 
 impl Decay {
-    pub fn increase(&mut self) {
-        self.degradation = self.degradation.saturating_add(1);
+    pub fn increase(&mut self, amount: f64) {
+        if self.degradation <= 1.0 {
+            self.degradation += amount;
+        } else {
+            self.degradation = 1.0
+        }
     }
 }

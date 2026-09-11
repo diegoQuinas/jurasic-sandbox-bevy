@@ -76,7 +76,7 @@ pub fn increase_desire_system(query: Query<(&mut Desire, &DinoState)>) {
 
 pub fn lay_eggs_system(
     query: Query<(Entity, &Position, &DinoState, &Pregnant)>,
-    mut world: WorldMap,
+    world: WorldMap,
     mut commands: Commands,
 ) {
     for (entity, pos, state, pregnant) in query {
@@ -97,10 +97,7 @@ pub fn lay_eggs_system(
         }
 
         if let Some(egg_pos) = spawn_pos {
-            let egg_entity = commands
-                .spawn(egg_bundle(egg_pos.x, egg_pos.y, pregnant.0))
-                .id();
-            world.set_occupied(egg_entity, egg_pos);
+            commands.spawn(egg_bundle(egg_pos.x, egg_pos.y, pregnant.0));
             commands.entity(entity).remove::<Pregnant>();
         }
     }

@@ -12,6 +12,8 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 
+use crate::{ui::Camera, world::Board};
+
 use super::render;
 
 #[derive(Resource)]
@@ -41,8 +43,7 @@ pub fn setup_terminal(mut commands: Commands) {
     enable_raw_mode().expect("failed to enable raw mode");
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen).expect("failed to enter alternate screen");
-    let terminal =
-        Terminal::new(CrosstermBackend::new(stdout)).expect("failed to create terminal");
+    let terminal = Terminal::new(CrosstermBackend::new(stdout)).expect("failed to create terminal");
     commands.insert_resource(TuiTerminal(terminal));
 }
 
@@ -51,11 +52,11 @@ pub struct TuiPlugin;
 impl Plugin for TuiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_terminal)
-            .add_systems(Update, (handle_quit_input, render));
+            .add_systems(Update, (handle_input, render));
     }
 }
 
-fn handle_quit_input(mut exit: MessageWriter<AppExit>) {
+fn handle_input(mut exit: MessageWriter<AppExit>, mut camera: ResMut<Camera>, board: Res<Board>) {
     while event::poll(Duration::from_millis(0)).unwrap_or(false) {
         let Ok(Event::Key(key)) = event::read() else {
             continue;
@@ -66,8 +67,21 @@ fn handle_quit_input(mut exit: MessageWriter<AppExit>) {
 
         let quit = matches!(key.code, KeyCode::Char('q') | KeyCode::Char('Q'))
             || (key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL));
+
         if quit {
             exit.write(AppExit::Success);
+            continue;
         }
+
+        let (dx, dy) = match key.code {
+            KeyCode::Up => (0, -1),
+            KeyCode::Down => (0, 1),
+            KeyCode::Left => (-1, 0),
+            KeyCode::Right => (1, 0),
+            _ => continue,
+        };
+
+        let (view_w, view_h) = (camera.last_view_w, camera.last_view_h);
+        camera.move_by(dx, dy, &board, view_w, view_h);
     }
 }

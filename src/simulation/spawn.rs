@@ -3,7 +3,6 @@ use bevy::ecs::{
     system::{Commands, Res, ResMut},
 };
 use rand::{RngExt, rng, rngs::ThreadRng};
-use ratatui::style::Color;
 
 use crate::world::{Board, Occupancy, Position, Renderable};
 
@@ -57,7 +56,7 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle
         Position { x, y, z: 3 },
         Renderable {
             glyph: "D",
-            color: Color::Rgb(genes.color.0, genes.color.1, genes.color.2),
+            color: genes.color,
         },
         Mortal {},
         Herbivore {},
@@ -76,7 +75,7 @@ pub fn egg_bundle(x: usize, y: usize, genes: DinosaurStats) -> impl Bundle {
         genes,
         Renderable {
             glyph: "0",
-            color: Color::White,
+            color: (255, 255, 255),
         },
     )
 }
@@ -86,12 +85,12 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
         Corpse,
         Renderable {
             glyph: "%",
-            color: Color::Gray,
+            color: (255, 0, 0), // Red
         },
         Position { x, y, z: 0 },
         Decay {
-            degradation_threshold: 10,
-            degradation: 0,
+            degradation_threshold: 1.0,
+            degradation: 0.0,
         },
     )
 }
@@ -102,12 +101,11 @@ pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
         Plant { health: 7 },
         Position { x, y, z: 2 },
         Renderable {
-            glyph: "🌳",
-            color: Color::Rgb(color.0, color.1, color.2),
+            glyph: "🌳", color
         },
         Decay {
-            degradation: 0,
-            degradation_threshold: 1000,
+            degradation: 0.0,
+            degradation_threshold: 1.0,
         },
     )
 }
@@ -115,14 +113,15 @@ pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
 pub fn grass_bundle(x: usize, y: usize) -> impl Bundle {
     let color = random_green();
     (
+        Grass,
         Position { x, y, z: 1 },
         Renderable {
             glyph: r#"."#,
-            color: Color::Rgb(color.0, color.1, color.2),
+            color,
         },
         Decay {
-            degradation: 0,
-            degradation_threshold: 75,
+            degradation: 0.0,
+            degradation_threshold: 1.0,
         },
     )
 }

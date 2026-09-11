@@ -8,6 +8,7 @@ pub struct Performance {
 }
 
 #[derive(Resource, Default)]
+#[allow(dead_code)]
 pub struct SystemPerformance {
     pub eggs_mature: f64,
     pub wander: f64,

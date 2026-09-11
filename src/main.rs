@@ -16,10 +16,6 @@ mod world;
 
 fn main() {
     App::new()
-        .insert_resource(Board {
-            width: 40,
-            height: 30,
-        })
         .init_resource::<Performance>()
         .init_resource::<SystemPerformance>()
         .configure_sets(Startup, (StartupSet::Board, StartupSet::Creatures).chain())
@@ -28,5 +24,14 @@ fn main() {
         .add_plugins(CreaturesPlugin)
         .add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_millis(100))))
         .add_plugins(TuiPlugin)
+        .add_systems(Startup, setup_camera)
         .run();
+}
+
+fn setup_camera(mut commands: Commands, board: Res<Board>) {
+    commands.insert_resource(ui::Camera::new(
+        board.width / 2,
+        board.height / 2,
+        90,
+    ));
 }

@@ -3,7 +3,12 @@ use bevy::{
     ecs::schedule::IntoScheduleConfigs,
 };
 
-use crate::{app::StartupSet, simulation::systems::increase_desire_system};
+use crate::{
+    app::StartupSet,
+    simulation::systems::{
+        degrade_corpose_color_system, degrade_plant_color_system, increase_desire_system,
+    },
+};
 
 use super::{
     spawn::spawn_creatures,
@@ -35,6 +40,8 @@ impl Plugin for CreaturesPlugin {
                     maturing_system,
                     death_system,
                     decay_system,
+                    degrade_corpose_color_system,
+                    degrade_plant_color_system,
                     spawn_random_plants_system,
                 )
                     .chain(),
