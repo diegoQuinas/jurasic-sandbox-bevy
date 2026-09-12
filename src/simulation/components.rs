@@ -128,10 +128,10 @@ impl Direction {
 
 #[derive(Component, Clone, Copy, Debug)]
 pub struct DinosaurStats {
-    pub generation: u32,
+    pub generation: u32, // Número de ancestros
     pub color: (u8, u8, u8),
-    pub starvation_resistance: f64,
-    pub metabolism: f64,
+    pub starvation_resistance: f64, // Cuánta hambre necesita para empezar a perder vida
+    pub metabolism: f64,            // Cuánta hambre tiene, qué tan rapido madura, que tan rojo es.
 }
 
 #[derive(Component, Default, Eq, PartialEq, Debug, Clone, Copy)]
