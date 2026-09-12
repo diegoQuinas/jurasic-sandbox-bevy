@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
-    text::Line,
-    widgets::{Block, BorderType, Borders, Paragraph, Widget},
+    style::{Color, Style, Stylize},
+    symbols::Marker,
+    text::{Line, Span},
+    widgets::{Axis, Block, BorderType, Borders, Chart, Dataset, GraphType, Paragraph, Widget},
 };
 
 use crate::{
@@ -56,7 +58,7 @@ pub fn render(
     eggs: Query<(), With<Egg>>,
     corpses: Query<(), With<Corpse>>,
     entities: Query<()>,
-    dinos: Query<(), With<DinosaurStats>>,
+    dinos: Query<&DinosaurStats>,
     performance: Res<Performance>,
     mut camera: ResMut<Camera>,
 
@@ -132,6 +134,17 @@ pub fn render(
                     .title("Stats"),
             );
             frame.render_widget(stats, sidebar[0]);
+
+            let layout = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).spacing(1);
+            let [top, main] = frame.area().layout(&layout);
+
+            let title = Line::from_iter([
+                Span::from("Chart Widget").bold(),
+                Span::from(" (Press 'q' to quit)"),
+            ]);
+            frame.render_widget(title.centered(), top);
+
+            render_chart(frame, main, dinos);
         })
         .expect("failed to draw TUI");
 }
@@ -196,4 +209,70 @@ impl Widget for BoardWidget<'_> {
             }
         }
     }
+}
+
+/// Render 2 charts. 1st chart goes upward, 2nd chart goes downward and has filled area underneath.
+pub fn render_chart(frame: &mut Frame, area: Rect, dinos: Query<&DinosaurStats>) {
+    let mut metabolisms: Vec<f64> = vec![];
+    for DinosaurStats { metabolism, .. } in dinos {
+        metabolisms.push(*metabolism);
+    }
+
+    let total_count = dinos.count() as f64;
+    let mut data: Vec<(f64, f64)> = vec![];
+    let mut x: f64 = 0.0;
+    for _ in 0..10 {
+        let count = metabolisms
+            .iter()
+            .filter(|m| **m >= x - 0.05 && **m < x + 0.05)
+            .count();
+        let count: f64 = count as f64;
+        data.push((x, count / total_count));
+        x += 0.1;
+    }
+    let dataset_upward = Dataset::default()
+        .name("Stonks")
+        .marker(Marker::Braille)
+        .graph_type(GraphType::Line)
+        .style(Color::Red)
+        .data(&data);
+
+    let dataset_downward = Dataset::default()
+        .name("Not stonks")
+        .marker(Marker::Braille)
+        .graph_type(GraphType::Area)
+        .fill_to_y(0.0)
+        .style(Color::Red)
+        .data(&[
+            (0.0, 10.0),
+            (1.0, 8.0),
+            (2.0, 8.5),
+            (3.0, 6.0),
+            (4.0, 7.0),
+            (5.0, 5.0),
+            (6.0, 5.5),
+            (7.0, 4.0),
+            (8.0, 3.5),
+            (9.0, 1.5),
+            (10.0, 2.5),
+        ]);
+
+    let x_axis = Axis::default()
+        .title("Metabolism".red())
+        .bounds([0.0, 1.0])
+        .labels(["0.0", "0.5", "1.0"]);
+
+    let total_count = total_count as u64;
+    let half_count = total_count / 2;
+    let half_count_str = &half_count.to_string();
+    let total_count_str = &total_count.to_string();
+    let y_axis = Axis::default()
+        .title("Dinos".red())
+        .bounds([0.0, 1.0])
+        .labels(["0", &half_count_str, &total_count_str]);
+
+    let chart = Chart::new(vec![dataset_downward, dataset_upward])
+        .x_axis(x_axis)
+        .y_axis(y_axis);
+    frame.render_widget(chart, area);
 }
