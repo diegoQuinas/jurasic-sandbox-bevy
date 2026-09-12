@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
-    text::Line,
-    widgets::{Block, BorderType, Borders, Paragraph, Widget},
+    Frame,
+    layout::{Constraint, Layout, Rect},
+    style::{Color, Style, Stylize},
+    symbols::Marker,
+    text::{Line, Span},
+    widgets::{Axis, Block, BorderType, Borders, Chart, Dataset, GraphType, Paragraph, Widget},
 };
 
 use crate::{
@@ -56,13 +58,11 @@ pub fn render(
     eggs: Query<(), With<Egg>>,
     corpses: Query<(), With<Corpse>>,
     entities: Query<()>,
-    dinos: Query<(), With<DinosaurStats>>,
+    dinos: Query<&DinosaurStats>,
     performance: Res<Performance>,
     mut camera: ResMut<Camera>,
-
     _systems_performance: Res<SystemPerformance>,
 ) {
-    // One glyph per (x, y): higher `z` wins (dino over plant over corpse).
     let mut visible: HashMap<(usize, usize), (usize, &Renderable)> = HashMap::new();
     for (position, renderable) in entity_renderables.iter() {
         visible
@@ -85,23 +85,34 @@ pub fn render(
     terminal
         .0
         .draw(|frame| {
-            let area = frame.area();
+            let title = Line::from_iter([
+                Span::from("Parque jurásico simulador").bold(),
+                Span::from(" (Presioná 'q' o Ctrl + 'c' para salir)"),
+            ]);
 
-            let (view_w, view_h) = BoardWidget::viewport_size(area, camera.percent);
+            // título arriba, resto abajo
+            let root = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).spacing(1);
+            let [top, main] = frame.area().layout(&root);
+            frame.render_widget(title.centered(), top);
 
+            // "main" se parte en fila de arriba (board+stats) y fila de abajo (chart)
+            let rows = Layout::vertical([Constraint::Fill(2), Constraint::Fill(1)])
+                .spacing(1)
+                .split(main);
+            let board_row = rows[0];
+            let chart_row = rows[1];
+
+            let (view_w, view_h) = BoardWidget::viewport_size(board_row, camera.percent);
             camera.last_view_w = view_w;
             camera.last_view_h = view_h;
-
             camera.x = camera.x.min(board.width.saturating_sub(view_w));
             camera.y = camera.y.min(board.height.saturating_sub(view_h));
 
-            let cols = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([
-                    Constraint::Length((view_w * 2 + 2) as u16),
-                    Constraint::Min(20),
-                ])
-                .split(area);
+            let cols = Layout::horizontal([
+                Constraint::Length((view_w * 2 + 2) as u16),
+                Constraint::Min(20),
+            ])
+            .split(board_row);
 
             let board_widget = BoardWidget {
                 percent: camera.percent,
@@ -109,13 +120,7 @@ pub fn render(
                 camera_y: camera.y,
                 tiles: &visible,
             };
-
             frame.render_widget(board_widget, cols[0]);
-
-            let sidebar = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Length(8), Constraint::Min(3)])
-                .split(cols[1]);
 
             let stats = Paragraph::new(vec![
                 Line::from(format!("Dinos:     {}", dinos_count)),
@@ -131,11 +136,12 @@ pub fn render(
                     .border_type(BorderType::Rounded)
                     .title("Stats"),
             );
-            frame.render_widget(stats, sidebar[0]);
+            frame.render_widget(stats, cols[1]);
+
+            render_chart(frame, chart_row, dinos);
         })
         .expect("failed to draw TUI");
 }
-
 struct BoardWidget<'a> {
     percent: u16,
     camera_x: usize,
@@ -196,4 +202,69 @@ impl Widget for BoardWidget<'_> {
             }
         }
     }
+}
+
+pub fn render_chart(frame: &mut Frame, area: Rect, dinos: Query<&DinosaurStats>) {
+    let mut metabolisms: Vec<f64> = vec![];
+    let mut resistances: Vec<f64> = vec![];
+    for DinosaurStats {
+        metabolism,
+        starvation_resistance,
+        ..
+    } in dinos
+    {
+        metabolisms.push(*metabolism);
+        resistances.push(*starvation_resistance);
+    }
+
+    let total_count = dinos.count();
+    let metabolisms_data = get_data(metabolisms, total_count);
+    let resistance_data = get_data(resistances, total_count);
+
+    let dataset_metabolism = Dataset::default()
+        .name("Metabolism")
+        .marker(Marker::Braille)
+        .graph_type(GraphType::Line)
+        .style(Color::Red)
+        .data(&metabolisms_data);
+
+    let dataset_resistance = Dataset::default()
+        .name("Resistance")
+        .marker(Marker::Braille)
+        .graph_type(GraphType::Line)
+        .style(Color::Yellow)
+        .data(&resistance_data);
+
+    let x_axis = Axis::default()
+        .bounds([0.0, 1.0])
+        .labels(["0%", "50%", "100%"]);
+
+    let half_count = total_count as u64 / 2;
+    let half_count_str = &half_count.to_string();
+    let total_count_str = &total_count.to_string();
+    let y_axis = Axis::default()
+        .title("Dinos".red())
+        .bounds([0.0, 1.0])
+        .labels(["0", &half_count_str, &total_count_str]);
+
+    let chart = Chart::new(vec![dataset_metabolism, dataset_resistance])
+        .x_axis(x_axis)
+        .y_axis(y_axis);
+    frame.render_widget(chart, area);
+}
+
+fn get_data(variable: Vec<f64>, total_count: usize) -> Vec<(f64, f64)> {
+    let total_count = total_count as f64;
+    let mut data: Vec<(f64, f64)> = vec![];
+    let mut x: f64 = 0.0;
+    for _ in 0..10 {
+        let count = variable
+            .iter()
+            .filter(|m| **m >= x - 0.05 && **m < x + 0.05)
+            .count();
+        let count: f64 = count as f64;
+        data.push((x, count / total_count));
+        x += 0.1;
+    }
+    data
 }
