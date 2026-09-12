@@ -22,6 +22,8 @@ pub struct Camera {
     percent: u16,
     pub last_view_w: usize,
     pub last_view_h: usize,
+    pub is_dragging: bool,
+    pub last_mouse_pos: Option<(u16, u16)>,
 }
 
 impl Camera {
@@ -32,6 +34,8 @@ impl Camera {
             percent,
             last_view_w: 0,
             last_view_h: 0,
+            is_dragging: false,
+            last_mouse_pos: None,
         }
     }
 
