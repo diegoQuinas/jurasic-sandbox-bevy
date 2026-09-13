@@ -29,5 +29,5 @@ fn main() {
 }
 
 fn setup_camera(mut commands: Commands, board: Res<Board>) {
-    commands.insert_resource(ui::Camera::new(board.width / 2, board.height / 2, 90));
+    commands.insert_resource(ui::Camera::new(board.width / 2, board.height / 2));
 }

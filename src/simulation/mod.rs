@@ -7,3 +7,4 @@ mod systems;
 
 pub use components::*;
 pub use plugin::CreaturesPlugin;
+pub use systems::PopulationHistory;

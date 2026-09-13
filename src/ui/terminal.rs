@@ -15,7 +15,10 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 
-use crate::{ui::Camera, world::Board};
+use crate::{
+    ui::{Camera, SideTab},
+    world::Board,
+};
 
 use super::render;
 
@@ -59,12 +62,18 @@ pub struct TuiPlugin;
 
 impl Plugin for TuiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_terminal)
+        app.init_resource::<SideTab>()
+            .add_systems(Startup, setup_terminal)
             .add_systems(Update, (handle_input, render));
     }
 }
 
-fn handle_input(mut exit: MessageWriter<AppExit>, mut camera: ResMut<Camera>, board: Res<Board>) {
+fn handle_input(
+    mut exit: MessageWriter<AppExit>,
+    mut camera: ResMut<Camera>,
+    mut side_tab: ResMut<SideTab>,
+    board: Res<Board>,
+) {
     while event::poll(Duration::from_millis(0)).unwrap_or(false) {
         // 1. Leemos el evento general sin filtrar todavía
         let Ok(current_event) = event::read() else {
@@ -86,6 +95,30 @@ fn handle_input(mut exit: MessageWriter<AppExit>, mut camera: ResMut<Camera>, bo
                 if quit {
                     exit.write(AppExit::Success);
                     continue;
+                }
+
+                match key.code {
+                    KeyCode::Tab => {
+                        *side_tab = side_tab.next();
+                        continue;
+                    }
+                    KeyCode::BackTab => {
+                        *side_tab = side_tab.prev();
+                        continue;
+                    }
+                    KeyCode::Char('1') => {
+                        *side_tab = SideTab::Stats;
+                        continue;
+                    }
+                    KeyCode::Char('2') => {
+                        *side_tab = SideTab::Charts;
+                        continue;
+                    }
+                    KeyCode::Char('3') => {
+                        *side_tab = SideTab::Tps;
+                        continue;
+                    }
+                    _ => {}
                 }
 
                 let (dx, dy) = match key.code {

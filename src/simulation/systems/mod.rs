@@ -1,6 +1,7 @@
 mod ai;
 mod food;
 mod lifecycle;
+mod population;
 mod reproduction;
 
 pub use ai::dino_decision_system;
@@ -9,4 +10,5 @@ pub use lifecycle::{
     death_system, decay_system, degrade_corpose_color_system, degrade_plant_color_system,
     healing_system, hunger_system, mature_eggs_system, maturing_system, starving_system,
 };
+pub use population::{sample_population_system, PopulationHistory, SampleTimer};
 pub use reproduction::{increase_desire_system, lay_eggs_system, reproduction_system};
