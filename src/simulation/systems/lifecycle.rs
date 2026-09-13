@@ -178,14 +178,17 @@ pub fn wander_system(query: Query<(Entity, &mut Position, &DinoState)>, mut worl
             continue;
         }
 
-        let mut shuffled_directions = Direction::ALL;
-        shuffled_directions.shuffle(&mut rng);
+        let walk = rng.random_bool(0.5);
+        if walk {
+            let mut shuffled_directions = Direction::ALL;
+            shuffled_directions.shuffle(&mut rng);
 
-        for dir in shuffled_directions {
-            let target = step(*pos, dir);
-            if world.is_free(target) {
-                world.move_entity(entity, *pos, target);
-                *pos = target;
+            for dir in shuffled_directions {
+                let target = step(*pos, dir);
+                if world.is_free(target) {
+                    world.move_entity(entity, *pos, target);
+                    *pos = target;
+                }
             }
         }
     }
