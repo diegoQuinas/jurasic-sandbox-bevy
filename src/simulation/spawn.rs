@@ -104,6 +104,7 @@ pub fn corpse_bundle(x: usize, y: usize, original_color: (u8, u8, u8)) -> impl B
 
 pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
     let color = random_green();
+    let glyph = random_plant_glyph();
     (
         Plant {
             health: 7,
@@ -129,6 +130,12 @@ pub fn grass_bundle(x: usize, y: usize) -> impl Bundle {
 pub fn random_grass_glyph() -> &'static str {
     let glyphs = [".", ",", ",", "·", "'", "˙"];
     let mut rng = rng();
+    glyphs.choose(&mut rng).unwrap()
+}
+
+pub fn random_plant_glyph() -> &'static str {
+    let mut rng = rng();
+    let glyphs = ["♣", "♠", "♧", "♤", "♣"];
     glyphs.choose(&mut rng).unwrap()
 }
 
