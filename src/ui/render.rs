@@ -15,7 +15,9 @@ use ratatui::{
 
 use crate::{
     app::{Performance, SystemPerformance},
-    simulation::{Corpse, DinosaurStats, Egg, Plant, PopulationHistory},
+    simulation::{
+        Corpse, Desire, DinosaurStats, Egg, Health, Hunger, Maturity, Plant, PopulationHistory,
+    },
     ui::TuiTerminal,
     world::{Board, Position, Renderable},
 };
@@ -73,6 +75,61 @@ impl SideTab {
 pub const SIDEBAR_MIN_WIDTH: u16 = 28;
 const SIDEBAR_DEFAULT_WIDTH: u16 = 42;
 const CHART_MIN_HEIGHT: u16 = 14;
+const PICKER_HEIGHT: u16 = 6;
+
+const COUNT_SERIES: [(&str, Color); 4] = [
+    ("Dinos", Color::Green),
+    ("Plants", Color::Cyan),
+    ("Eggs", Color::Yellow),
+    ("Corpses", Color::Gray),
+];
+
+const TRAIT_SERIES: [(&str, Color); 6] = [
+    ("Metab", Color::Red),
+    ("Resist", Color::Yellow),
+    ("Hunger", Color::LightRed),
+    ("Health", Color::LightGreen),
+    ("Mature", Color::Blue),
+    ("Desire", Color::Magenta),
+];
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ChartHit {
+    Count(usize),
+    Trait(usize),
+}
+
+#[derive(Resource)]
+pub struct ChartSelection {
+    pub counts: [bool; 4],
+    pub traits: [bool; 6],
+}
+
+impl Default for ChartSelection {
+    fn default() -> Self {
+        Self {
+            counts: [true, true, true, true],
+            traits: [true, true, false, false, false, false],
+        }
+    }
+}
+
+impl ChartSelection {
+    pub fn toggle(&mut self, hit: ChartHit) {
+        match hit {
+            ChartHit::Count(i) => {
+                if let Some(flag) = self.counts.get_mut(i) {
+                    *flag = !*flag;
+                }
+            }
+            ChartHit::Trait(i) => {
+                if let Some(flag) = self.traits.get_mut(i) {
+                    *flag = !*flag;
+                }
+            }
+        }
+    }
+}
 
 #[derive(Resource)]
 pub struct Sidebar {
@@ -82,6 +139,7 @@ pub struct Sidebar {
     pub last_tabs: Rect,
     pub last_content: Rect,
     pub last_side: Rect,
+    pub last_chart_hits: Vec<(Rect, ChartHit)>,
 }
 
 impl Default for Sidebar {
@@ -93,6 +151,7 @@ impl Default for Sidebar {
             last_tabs: Rect::default(),
             last_content: Rect::default(),
             last_side: Rect::default(),
+            last_chart_hits: Vec::new(),
         }
     }
 }
@@ -122,6 +181,14 @@ impl Sidebar {
             x = end;
         }
         None
+    }
+
+    pub fn chart_hit_at(&self, column: u16, row: u16) -> Option<ChartHit> {
+        let pos = CellPos::new(column, row);
+        self.last_chart_hits
+            .iter()
+            .find(|(rect, _)| rect.contains(pos))
+            .map(|(_, hit)| *hit)
     }
 
     pub fn is_resize_handle(&self, column: u16, row: u16) -> bool {
@@ -167,12 +234,13 @@ pub fn render(
     eggs: Query<(), With<Egg>>,
     corpses: Query<(), With<Corpse>>,
     entities: Query<()>,
-    dinos: Query<&DinosaurStats>,
+    dinos: Query<(&DinosaurStats, &Hunger, &Health, &Maturity, &Desire)>,
     performance: Res<Performance>,
     mut camera: ResMut<Camera>,
     history: Res<PopulationHistory>,
     side_tab: Res<SideTab>,
     mut sidebar: ResMut<Sidebar>,
+    charts: Res<ChartSelection>,
     _systems_performance: Res<SystemPerformance>,
 ) {
     let mut visible: HashMap<(usize, usize), (usize, &Renderable)> = HashMap::new();
@@ -269,7 +337,14 @@ pub fn render(
                     ticks_per_second,
                 ),
                 SideTab::Charts => {
-                    render_scrollable_charts(frame, side[1], &history, dinos, &mut sidebar);
+                    render_scrollable_charts(
+                        frame,
+                        side[1],
+                        &history,
+                        dinos,
+                        &mut sidebar,
+                        &charts,
+                    );
                 }
                 SideTab::Tps => render_tps_chart(frame, side[1], &history),
             }
@@ -370,37 +445,47 @@ fn render_scrollable_charts(
     frame: &mut Frame,
     area: Rect,
     history: &PopulationHistory,
-    dinos: Query<&DinosaurStats>,
+    dinos: Query<(&DinosaurStats, &Hunger, &Health, &Maturity, &Desire)>,
     sidebar: &mut Sidebar,
+    charts: &ChartSelection,
 ) {
+    sidebar.last_chart_hits.clear();
+    let picker_h = PICKER_HEIGHT.min(area.height);
+    let body = Layout::vertical([Constraint::Length(picker_h), Constraint::Fill(1)]).split(area);
+    render_series_picker(frame, body[0], charts, sidebar);
+
+    let chart_area = body[1];
     let chart_count = 2u16;
     let min_total = CHART_MIN_HEIGHT.saturating_mul(chart_count);
 
-    if area.height >= min_total {
+    if chart_area.height >= min_total {
         sidebar.scroll = 0;
-        let chunks = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).split(area);
-        render_population_chart(frame, chunks[0], history);
-        render_chart(frame, chunks[1], dinos);
+        let chunks = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).split(chart_area);
+        render_population_chart(frame, chunks[0], history, charts);
+        render_chart(frame, chunks[1], dinos, charts);
         return;
     }
 
-    let max_scroll = min_total.saturating_sub(area.height);
+    let max_scroll = min_total.saturating_sub(chart_area.height);
     sidebar.scroll = sidebar.scroll.min(max_scroll);
 
     let slot = |index: u16| {
-        let y = area.y.saturating_add(index * CHART_MIN_HEIGHT).saturating_sub(sidebar.scroll);
+        let y = chart_area
+            .y
+            .saturating_add(index * CHART_MIN_HEIGHT)
+            .saturating_sub(sidebar.scroll);
         Rect {
-            x: area.x,
+            x: chart_area.x,
             y,
-            width: area.width.saturating_sub(1),
+            width: chart_area.width.saturating_sub(1),
             height: CHART_MIN_HEIGHT,
         }
     };
-    if let Some(visible) = clip_rect(slot(0), area) {
-        render_population_chart(frame, visible, history);
+    if let Some(visible) = clip_rect(slot(0), chart_area) {
+        render_population_chart(frame, visible, history, charts);
     }
-    if let Some(visible) = clip_rect(slot(1), area) {
-        render_chart(frame, visible, dinos);
+    if let Some(visible) = clip_rect(slot(1), chart_area) {
+        render_chart(frame, visible, dinos, charts);
     }
 
     if max_scroll > 0 {
@@ -409,47 +494,149 @@ fn render_scrollable_charts(
             Scrollbar::new(ScrollbarOrientation::VerticalRight)
                 .begin_symbol(Some("▲"))
                 .end_symbol(Some("▼")),
-            area,
+            chart_area,
             &mut state,
         );
     }
 }
 
-fn render_chart(frame: &mut Frame, area: Rect, dinos: Query<&DinosaurStats>) {
-    let mut metabolisms: Vec<f64> = vec![];
-    let mut resistances: Vec<f64> = vec![];
-    for DinosaurStats {
-        metabolism,
-        starvation_resistance,
-        ..
-    } in dinos
-    {
-        metabolisms.push(*metabolism);
-        resistances.push(*starvation_resistance);
+fn chip_style(on: bool, color: Color) -> Style {
+    if on {
+        Style::default().fg(color).add_modifier(Modifier::BOLD | Modifier::REVERSED)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    }
+}
+
+fn render_chip_row(
+    x0: u16,
+    y: u16,
+    max_x: u16,
+    items: &[(&str, Color)],
+    enabled: &[bool],
+    make_hit: impl Fn(usize) -> ChartHit,
+    hits: &mut Vec<(Rect, ChartHit)>,
+) -> Line<'static> {
+    let mut spans = Vec::new();
+    let mut x = x0;
+    for (i, (name, color)) in items.iter().enumerate() {
+        let on = enabled.get(i).copied().unwrap_or(false);
+        let label = format!(" {name} ");
+        let w = label.len() as u16;
+        if x + w > max_x {
+            break;
+        }
+        hits.push((
+            Rect {
+                x,
+                y,
+                width: w,
+                height: 1,
+            },
+            make_hit(i),
+        ));
+        spans.push(Span::styled(label, chip_style(on, *color)));
+        spans.push(Span::raw(" "));
+        x = x.saturating_add(w + 1);
+    }
+    Line::from(spans)
+}
+
+fn render_series_picker(
+    frame: &mut Frame,
+    area: Rect,
+    charts: &ChartSelection,
+    sidebar: &mut Sidebar,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .title("Series  click to toggle  ·  counts overlay  ·  traits overlay");
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    if inner.width == 0 || inner.height == 0 {
+        return;
     }
 
-    let total_count = dinos.count();
+    let counts = render_chip_row(
+        inner.x,
+        inner.y,
+        inner.x + inner.width,
+        &COUNT_SERIES,
+        &charts.counts,
+        ChartHit::Count,
+        &mut sidebar.last_chart_hits,
+    );
+    let traits = if inner.height >= 2 {
+        render_chip_row(
+            inner.x,
+            inner.y.saturating_add(1),
+            inner.x + inner.width,
+            &TRAIT_SERIES,
+            &charts.traits,
+            ChartHit::Trait,
+            &mut sidebar.last_chart_hits,
+        )
+    } else {
+        Line::from("")
+    };
+
+    frame.render_widget(Paragraph::new(vec![counts, traits]), inner);
+}
+
+fn render_chart(
+    frame: &mut Frame,
+    area: Rect,
+    dinos: Query<(&DinosaurStats, &Hunger, &Health, &Maturity, &Desire)>,
+    charts: &ChartSelection,
+) {
+    let mut buckets: [Vec<f64>; 6] = Default::default();
+    let mut total_count = 0usize;
+    for (stats, hunger, health, maturity, desire) in dinos {
+        total_count += 1;
+        buckets[0].push(stats.metabolism);
+        buckets[1].push(stats.starvation_resistance);
+        buckets[2].push(hunger.hunger());
+        buckets[3].push(health.health());
+        buckets[4].push(maturity.maturity());
+        buckets[5].push(desire.desire());
+    }
+
     if total_count == 0 {
         render_placeholder(frame, area, "Trait distribution", "No dinosaurs yet");
         return;
     }
 
-    let metabolisms_data = get_data(metabolisms, total_count);
-    let resistance_data = get_data(resistances, total_count);
+    if !charts.traits.iter().any(|on| *on) {
+        render_placeholder(
+            frame,
+            area,
+            "Trait distribution",
+            "Select one or more traits above",
+        );
+        return;
+    }
 
-    let dataset_metabolism = Dataset::default()
-        .name("Metabolism")
-        .marker(Marker::Braille)
-        .graph_type(GraphType::Line)
-        .style(Color::Red)
-        .data(&metabolisms_data);
+    let plotted: Vec<(usize, Vec<(f64, f64)>)> = charts
+        .traits
+        .iter()
+        .enumerate()
+        .filter(|(_, on)| **on)
+        .map(|(i, _)| (i, get_data(std::mem::take(&mut buckets[i]), total_count)))
+        .collect();
 
-    let dataset_resistance = Dataset::default()
-        .name("Resistance")
-        .marker(Marker::Braille)
-        .graph_type(GraphType::Line)
-        .style(Color::Yellow)
-        .data(&resistance_data);
+    let datasets: Vec<Dataset> = plotted
+        .iter()
+        .map(|(i, data)| {
+            let (name, color) = TRAIT_SERIES[*i];
+            Dataset::default()
+                .name(name)
+                .marker(Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(color)
+                .data(data)
+        })
+        .collect();
 
     let x_axis = Axis::default()
         .title("Trait value")
@@ -464,7 +651,7 @@ fn render_chart(frame: &mut Frame, area: Rect, dinos: Query<&DinosaurStats>) {
         .bounds([0.0, 1.0])
         .labels(["0".to_string(), half_count_str, total_count_str]);
 
-    let chart = Chart::new(vec![dataset_metabolism, dataset_resistance])
+    let chart = Chart::new(datasets)
         .legend_position(Some(LegendPosition::TopRight))
         .x_axis(x_axis)
         .y_axis(y_axis)
@@ -567,20 +754,35 @@ fn render_history_chart(
     frame.render_widget(chart, area);
 }
 
-fn render_population_chart(frame: &mut Frame, area: Rect, history: &PopulationHistory) {
-    render_history_chart(
-        frame,
-        area,
-        "Population history",
-        "Count",
-        history,
-        &[
-            ("Dinos", Color::Green, &history.dinos),
-            ("Plants", Color::Cyan, &history.plants),
-            ("Eggs", Color::Yellow, &history.eggs),
-            ("Corpses", Color::Gray, &history.corpses),
-        ],
-    );
+fn render_population_chart(
+    frame: &mut Frame,
+    area: Rect,
+    history: &PopulationHistory,
+    charts: &ChartSelection,
+) {
+    if !charts.counts.iter().any(|on| *on) {
+        render_placeholder(
+            frame,
+            area,
+            "Population history",
+            "Select one or more counts above",
+        );
+        return;
+    }
+
+    let all = [
+        ("Dinos", Color::Green, history.dinos.as_slice()),
+        ("Plants", Color::Cyan, history.plants.as_slice()),
+        ("Eggs", Color::Yellow, history.eggs.as_slice()),
+        ("Corpses", Color::Gray, history.corpses.as_slice()),
+    ];
+    let series: Vec<(&str, Color, &[(f64, f64)])> = all
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| charts.counts[*i])
+        .map(|(_, s)| s)
+        .collect();
+    render_history_chart(frame, area, "Population history", "Count", history, &series);
 }
 
 fn render_tps_chart(frame: &mut Frame, area: Rect, history: &PopulationHistory) {

@@ -2,13 +2,52 @@ use bevy::ecs::{
     bundle::Bundle,
     system::{Commands, Res, ResMut},
 };
-use rand::{RngExt, rng, rngs::ThreadRng, seq::IndexedRandom};
+use bevy::prelude::Resource;
+use noise::{Fbm, NoiseFn, Perlin};
+use rand::{Rng, RngExt, rng, rngs::ThreadRng, seq::IndexedRandom};
 
 use crate::world::{Board, Occupancy, Position, Renderable};
 
 use super::components::*;
 
 pub const STARTING_FAMILIES: u32 = 100;
+
+/// Low-frequency Perlin (FBM) that marks forest groves. Same field is used at
+/// startup and when trees grow back, so new plants keep clustering.
+#[derive(Resource, Clone)]
+pub struct ForestNoise {
+    noise: Fbm<Perlin>,
+    threshold: f64,
+}
+
+impl ForestNoise {
+    pub fn new(seed: u32) -> Self {
+        let mut noise = Fbm::<Perlin>::new(seed);
+        noise.octaves = 4;
+        noise.frequency = 0.032;
+        noise.lacunarity = 2.1;
+        noise.persistence = 0.52;
+        Self {
+            noise,
+            threshold: 0.18,
+        }
+    }
+
+    /// 0 outside groves, up to 1 in the densest core.
+    pub fn grove_density(&self, x: usize, y: usize) -> f64 {
+        let n = self.noise.get([x as f64, y as f64]);
+        if n <= self.threshold {
+            0.0
+        } else {
+            ((n - self.threshold) / (1.0 - self.threshold)).clamp(0.0, 1.0)
+        }
+    }
+
+    pub fn should_spawn_tree(&self, x: usize, y: usize, rng: &mut impl Rng) -> bool {
+        let density = self.grove_density(x, y);
+        density > 0.0 && rng.random_bool(0.15 + 0.75 * density)
+    }
+}
 
 fn create_families(rng: &mut ThreadRng) -> Vec<DinosaurStats> {
     let starting_generation_number = 0;
@@ -40,6 +79,7 @@ pub fn spawn_creatures(
 ) {
     let mut rng = rand::rng();
     let families = create_families(&mut rng);
+    let forest = ForestNoise::new(rng.random());
 
     for family in families {
         let x = rng.random_range(0..board.width);
@@ -48,13 +88,23 @@ pub fn spawn_creatures(
         occupancy.set(Position { x, y, z: 3 }, Some(entity));
     }
 
-    for x in 0..=board.width {
-        for y in 0..=board.height {
+    for x in 0..board.width {
+        for y in 0..board.height {
             if rng.random_bool(0.3) {
                 commands.spawn(grass_bundle(x, y));
             }
+            if forest.should_spawn_tree(x, y, &mut rng) {
+                let pos = Position { x, y, z: 2 };
+                if occupancy.is_occupied(pos) {
+                    continue;
+                }
+                let entity = commands.spawn(plant_bundle(x, y)).id();
+                occupancy.set(pos, Some(entity));
+            }
         }
     }
+
+    commands.insert_resource(forest);
 }
 
 pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle {

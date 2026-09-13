@@ -18,7 +18,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use ratatui::layout::Position;
 
 use crate::{
-    ui::{Camera, SideTab, Sidebar},
+    ui::{Camera, ChartSelection, SideTab, Sidebar},
     world::Board,
 };
 
@@ -66,6 +66,7 @@ impl Plugin for TuiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SideTab>()
             .init_resource::<Sidebar>()
+            .init_resource::<ChartSelection>()
             .add_systems(Startup, setup_terminal)
             .add_systems(Update, (handle_input, render));
     }
@@ -76,6 +77,7 @@ fn handle_input(
     mut camera: ResMut<Camera>,
     mut side_tab: ResMut<SideTab>,
     mut sidebar: ResMut<Sidebar>,
+    mut charts: ResMut<ChartSelection>,
     board: Res<Board>,
 ) {
     while event::poll(Duration::from_millis(0)).unwrap_or(false) {
@@ -157,6 +159,12 @@ fn handle_input(
                             *side_tab = tab;
                             sidebar.scroll = 0;
                             continue;
+                        }
+                        if *side_tab == SideTab::Charts {
+                            if let Some(hit) = sidebar.chart_hit_at(column, row) {
+                                charts.toggle(hit);
+                                continue;
+                            }
                         }
                     }
                     MouseEventKind::Drag(MouseButton::Left) => {

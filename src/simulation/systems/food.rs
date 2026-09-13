@@ -7,7 +7,7 @@ use crate::{
     simulation::{
         components::{DinoState, DinosaurStats, Herbivore, Hunger, Plant},
         movement::{chebyshev, find_closest_tile, neighborhood, try_move},
-        spawn::{grass_bundle, plant_bundle},
+        spawn::{ForestNoise, plant_bundle},
     },
     world::{Position, WorldMap},
 };
@@ -112,24 +112,35 @@ pub fn herbivore_eating_system(
     }
 }
 
-pub fn spawn_random_plants_system(mut commands: Commands, mut world: WorldMap) {
+pub fn spawn_random_plants_system(
+    mut commands: Commands,
+    mut world: WorldMap,
+    forest: Res<ForestNoise>,
+) {
     let mut rng = rng();
     let (width, height) = world.dimensions();
-    for _ in 0..5 {
+    if width == 0 || height == 0 {
+        return;
+    }
+
+    // Bias samples toward groves: reject cells outside the noise field.
+    let mut spawned = 0u8;
+    for _ in 0..80 {
+        if spawned >= 6 {
+            break;
+        }
         let x = rng.random_range(0..width);
         let y = rng.random_range(0..height);
+        let density = forest.grove_density(x, y);
+        if density <= 0.0 || !rng.random_bool(0.25 + 0.55 * density) {
+            continue;
+        }
         let pos = Position { x, y, z: 2 };
-
         if !world.is_free(pos) {
-            return;
+            continue;
         }
-        let is_plant = rng.random_bool(0.1);
-
-        if is_plant {
-            let plant_entity = commands.spawn(plant_bundle(x, y)).id();
-            world.set_occupied(plant_entity, pos);
-        } else {
-            //let _grass_entity = commands.spawn(grass_bundle(x, y));
-        }
+        let plant_entity = commands.spawn(plant_bundle(x, y)).id();
+        world.set_occupied(plant_entity, pos);
+        spawned += 1;
     }
 }
