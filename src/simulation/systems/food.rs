@@ -5,15 +5,15 @@ use rand::{RngExt, rng};
 
 use crate::{
     simulation::{
-        components::{DinoState, Herbivore, Hunger, Plant},
-        movement::{chebyshev, find_closest_tile, neighborhood, step},
+        components::{DinoState, DinosaurStats, Herbivore, Hunger, Plant},
+        movement::{chebyshev, find_closest_tile, neighborhood, try_move},
         spawn::{grass_bundle, plant_bundle},
     },
     world::{Position, WorldMap},
 };
 
 pub fn seek_herbivore_food_system(
-    mut dinos: Query<(Entity, &mut Position, &DinoState), (With<Herbivore>, Without<Plant>)>,
+    mut dinos: Query<(Entity, &mut Position, &DinoState, &DinosaurStats), (With<Herbivore>, Without<Plant>)>,
     plants_query: Query<(Entity, &Position), (With<Plant>, Without<Herbivore>)>,
     mut world_map: WorldMap,
 ) {
@@ -24,7 +24,7 @@ pub fn seek_herbivore_food_system(
     // on the grid instead of scanning every plant.
     let mut reserved: HashSet<Entity> = HashSet::new();
     let mut plant_owner: HashMap<Entity, Entity> = HashMap::new();
-    for (dino_e, dino_pos, _) in dinos.iter() {
+    for (dino_e, dino_pos, _, _) in dinos.iter() {
         let adjacent_plant = neighborhood(*dino_pos).into_iter().find_map(|cell| {
             world_map
                 .entity_at(cell)
@@ -36,7 +36,7 @@ pub fn seek_herbivore_food_system(
         }
     }
 
-    for (dino_entity, mut dino_pos, dino_state) in &mut dinos {
+    for (dino_entity, mut dino_pos, dino_state, stats) in &mut dinos {
         if *dino_state != DinoState::SeekingFood {
             continue;
         }
@@ -66,12 +66,13 @@ pub fn seek_herbivore_food_system(
         reserved.insert(plant_entity);
 
         let move_direction = find_closest_tile(&world_map, &dino_pos, &target_pos);
-        let target = step(*dino_pos, move_direction);
-
-        if target != *dino_pos && world_map.is_free(target) {
-            world_map.move_entity(dino_entity, *dino_pos, target);
-            *dino_pos = target;
-        }
+        try_move(
+            &mut world_map,
+            dino_entity,
+            &mut dino_pos,
+            move_direction,
+            stats.metabolism,
+        );
     }
 }
 

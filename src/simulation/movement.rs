@@ -1,11 +1,38 @@
 use bevy::prelude::*;
 
+use rand::{RngExt, rng};
+
 use crate::{
     simulation::Desire,
     world::{Position, WorldMap},
 };
 
 use super::components::{DinoState, DinosaurStats, Direction, Gender};
+
+/// Metabolism 0..=1 maps to a 0.25..=1.0 chance to take a step this tick.
+fn step_chance(metabolism: f64) -> f64 {
+    0.25 + metabolism.clamp(0.0, 1.0) * 0.75
+}
+
+/// One Chebyshev step if the cell is free and metabolism grants this tick.
+pub fn try_move(
+    world: &mut WorldMap,
+    entity: Entity,
+    pos: &mut Position,
+    dir: Direction,
+    metabolism: f64,
+) -> bool {
+    let target = step(*pos, dir);
+    if target == *pos || !world.is_free(target) {
+        return false;
+    }
+    if !rng().random_bool(step_chance(metabolism)) {
+        return false;
+    }
+    world.move_entity(entity, *pos, target);
+    *pos = target;
+    true
+}
 
 /// Chebyshev distance: a diagonal step counts as 1, matching 8-way movement.
 pub fn chebyshev(a: &Position, b: &Position) -> usize {

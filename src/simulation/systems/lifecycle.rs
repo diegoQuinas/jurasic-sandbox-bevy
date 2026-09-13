@@ -5,7 +5,7 @@ use crate::{
     simulation::{
         Corpse, DinoState, Direction, Maturity,
         components::{Decay, DinosaurStats, Egg, Health, Hunger, Plant},
-        movement::step,
+        movement::{step, try_move},
         spawn::{corpse_bundle, dinosaur_bundle},
     },
     world::{Occupancy, Position, Renderable, WorldMap},
@@ -171,25 +171,25 @@ pub fn decay_system(
     }
 }
 
-pub fn wander_system(query: Query<(Entity, &mut Position, &DinoState)>, mut world: WorldMap) {
+pub fn wander_system(
+    query: Query<(Entity, &mut Position, &DinoState, &DinosaurStats)>,
+    mut world: WorldMap,
+) {
     let mut rng = rng();
-    for (entity, mut pos, dino_state) in query {
+    for (entity, mut pos, dino_state, stats) in query {
         if *dino_state != DinoState::Wandering {
             continue;
         }
 
-        let walk = rng.random_bool(0.5);
-        if walk {
-            let mut shuffled_directions = Direction::ALL;
-            shuffled_directions.shuffle(&mut rng);
+        let mut shuffled_directions = Direction::ALL;
+        shuffled_directions.shuffle(&mut rng);
 
-            for dir in shuffled_directions {
-                let target = step(*pos, dir);
-                if world.is_free(target) {
-                    world.move_entity(entity, *pos, target);
-                    *pos = target;
-                }
-            }
-        }
+        let Some(dir) = shuffled_directions
+            .into_iter()
+            .find(|dir| world.is_free(step(*pos, *dir)))
+        else {
+            continue;
+        };
+        try_move(&mut world, entity, &mut pos, dir, stats.metabolism);
     }
 }

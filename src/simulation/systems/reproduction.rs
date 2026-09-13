@@ -6,7 +6,7 @@ use crate::{
         Desire,
         components::{DinoState, DinosaurStats, Direction, Gender, Pregnant},
         genetics::blend_dino_stats,
-        movement::{chebyshev, find_closest_target_reproduction, find_closest_tile, step},
+        movement::{chebyshev, find_closest_target_reproduction, find_closest_tile, step, try_move},
         spawn::egg_bundle,
     },
     world::{Position, WorldMap},
@@ -54,12 +54,13 @@ pub fn reproduction_system(
         }
 
         let move_direction = find_closest_tile(&world_map, &pos, &target_pos);
-        let target = step(*pos, move_direction);
-
-        if target != *pos && world_map.is_free(target) {
-            world_map.move_entity(origin_entity, *pos, target);
-            *pos = target;
-        }
+        try_move(
+            &mut world_map,
+            origin_entity,
+            &mut pos,
+            move_direction,
+            origin_stats.metabolism,
+        );
     }
 }
 
