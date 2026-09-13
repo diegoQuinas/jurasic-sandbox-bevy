@@ -2,7 +2,7 @@ use bevy::ecs::{
     bundle::Bundle,
     system::{Commands, Res, ResMut},
 };
-use rand::{RngExt, rng, rngs::ThreadRng};
+use rand::{RngExt, rng, rngs::ThreadRng, seq::IndexedRandom};
 
 use crate::world::{Board, Occupancy, Position, Renderable};
 
@@ -122,14 +122,14 @@ pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
 
 pub fn grass_bundle(x: usize, y: usize) -> impl Bundle {
     let color = random_green();
-    (
-        Grass,
-        Position { x, y, z: 1 },
-        Renderable {
-            glyph: r#"."#,
-            color,
-        },
-    )
+    let glyph = random_grass_glyph();
+    (Grass, Position { x, y, z: 1 }, Renderable { glyph, color })
+}
+
+pub fn random_grass_glyph() -> &'static str {
+    let glyphs = [".", ",", ",", "·", "'", "˙"];
+    let mut rng = rng();
+    glyphs.choose(&mut rng).unwrap()
 }
 
 fn random_green() -> (u8, u8, u8) {
