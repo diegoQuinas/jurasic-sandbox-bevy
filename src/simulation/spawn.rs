@@ -111,9 +111,7 @@ pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
             original_color: color,
         },
         Position { x, y, z: 2 },
-        Renderable {
-            glyph: "🌳", color
-        },
+        Renderable { glyph, color },
         Decay {
             degradation: 0.0,
             degradation_threshold: 1.0,
