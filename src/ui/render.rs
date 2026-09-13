@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use ratatui::{
     Frame,
-    layout::{Constraint, Layout, Rect},
+    layout::{Constraint, Layout, Margin, Position as CellPos, Rect},
     style::{Color, Modifier, Style, Stylize},
     symbols::Marker,
     text::{Line, Span},
     widgets::{
         Axis, Block, BorderType, Borders, Chart, Dataset, GraphType, LegendPosition, Paragraph,
-        Tabs, Widget,
+        Scrollbar, ScrollbarOrientation, ScrollbarState, Tabs, Widget,
     },
 };
 
@@ -70,6 +70,74 @@ impl SideTab {
     }
 }
 
+pub const SIDEBAR_MIN_WIDTH: u16 = 28;
+const SIDEBAR_DEFAULT_WIDTH: u16 = 42;
+const CHART_MIN_HEIGHT: u16 = 14;
+
+#[derive(Resource)]
+pub struct Sidebar {
+    pub width: u16,
+    pub scroll: u16,
+    pub resizing: bool,
+    pub last_tabs: Rect,
+    pub last_content: Rect,
+    pub last_side: Rect,
+}
+
+impl Default for Sidebar {
+    fn default() -> Self {
+        Self {
+            width: SIDEBAR_DEFAULT_WIDTH,
+            scroll: 0,
+            resizing: false,
+            last_tabs: Rect::default(),
+            last_content: Rect::default(),
+            last_side: Rect::default(),
+        }
+    }
+}
+
+impl Sidebar {
+    pub fn tab_at(&self, column: u16, row: u16) -> Option<SideTab> {
+        if !self.last_tabs.contains(CellPos::new(column, row)) {
+            return None;
+        }
+        // Titles are packed left: " Stats │ Charts │ TPS " (pad 1, divider " │ ").
+        let inner = self.last_tabs.inner(Margin::new(1, 1));
+        if inner.width == 0 || column < inner.x {
+            return None;
+        }
+        const PAD: u16 = 1;
+        const DIVIDER_WIDTH: u16 = 3;
+        let titles = SideTab::titles();
+        let mut x = inner.x;
+        for (i, title) in titles.iter().enumerate() {
+            let tab_w = PAD + title.len() as u16 + PAD;
+            let last = i + 1 == titles.len();
+            let span = if last { tab_w } else { tab_w + DIVIDER_WIDTH };
+            let end = (x + span).min(inner.x + inner.width);
+            if column >= x && column < end {
+                return Some(SideTab::from_index(i));
+            }
+            x = end;
+        }
+        None
+    }
+
+    pub fn is_resize_handle(&self, column: u16, row: u16) -> bool {
+        if self.last_side.height == 0 {
+            return false;
+        }
+        let y_ok = row >= self.last_side.y && row < self.last_side.y + self.last_side.height;
+        y_ok && (column == self.last_side.x || column + 1 == self.last_side.x)
+    }
+
+    pub fn clamp_width(&self, terminal_width: u16) -> u16 {
+        let max = terminal_width.saturating_sub(16).max(SIDEBAR_MIN_WIDTH);
+        self.width.clamp(SIDEBAR_MIN_WIDTH, max)
+    }
+}
+
 impl Camera {
     pub fn new(x: usize, y: usize) -> Self {
         Self {
@@ -104,6 +172,7 @@ pub fn render(
     mut camera: ResMut<Camera>,
     history: Res<PopulationHistory>,
     side_tab: Res<SideTab>,
+    mut sidebar: ResMut<Sidebar>,
     _systems_performance: Res<SystemPerformance>,
 ) {
     let mut visible: HashMap<(usize, usize), (usize, &Renderable)> = HashMap::new();
@@ -130,7 +199,9 @@ pub fn render(
         .draw(|frame| {
             let title = Line::from_iter([
                 Span::from("Jurassic Sandbox").bold(),
-                Span::from("  q / Ctrl+C quit  ·  Tab switch panel  ·  arrows pan"),
+                Span::from(
+                    "  q / Ctrl+C quit  ·  click tabs  ·  drag sidebar  ·  Tab  ·  arrows pan",
+                ),
             ]);
 
             let root = Layout::vertical([
@@ -141,9 +212,16 @@ pub fn render(
             let [top, main] = frame.area().layout(&root);
             frame.render_widget(title.centered(), top);
 
-            let cols = Layout::horizontal([Constraint::Fill(3), Constraint::Min(42)]).split(main);
+            let side_width = sidebar.clamp_width(main.width);
+            sidebar.width = side_width;
+            let cols = Layout::horizontal([
+                Constraint::Fill(1),
+                Constraint::Length(side_width),
+            ])
+            .split(main);
             let board_area = cols[0];
             let side_area = cols[1];
+            sidebar.last_side = side_area;
 
             let (view_w, view_h) = BoardWidget::viewport_size(board_area);
             camera.last_view_w = view_w;
@@ -161,12 +239,14 @@ pub fn render(
             );
 
             let side = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).split(side_area);
+            sidebar.last_tabs = side[0];
+            sidebar.last_content = side[1];
             let tabs = Tabs::new(SideTab::titles())
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
                         .border_type(BorderType::Rounded)
-                        .title("Inspect  [1-3]"),
+                        .title("Inspect  click / [1-3]  ·  drag │"),
                 )
                 .select(side_tab.index())
                 .highlight_style(
@@ -189,10 +269,7 @@ pub fn render(
                     ticks_per_second,
                 ),
                 SideTab::Charts => {
-                    let chart_rows =
-                        Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).split(side[1]);
-                    render_population_chart(frame, chart_rows[0], &history);
-                    render_chart(frame, chart_rows[1], dinos);
+                    render_scrollable_charts(frame, side[1], &history, dinos, &mut sidebar);
                 }
                 SideTab::Tps => render_tps_chart(frame, side[1], &history),
             }
@@ -277,6 +354,55 @@ impl Widget for BoardWidget<'_> {
                 );
             }
         }
+    }
+}
+
+fn clip_rect(area: Rect, parent: Rect) -> Option<Rect> {
+    let clipped = area.intersection(parent);
+    if clipped.width == 0 || clipped.height == 0 {
+        None
+    } else {
+        Some(clipped)
+    }
+}
+
+fn render_scrollable_charts(
+    frame: &mut Frame,
+    area: Rect,
+    history: &PopulationHistory,
+    dinos: Query<&DinosaurStats>,
+    sidebar: &mut Sidebar,
+) {
+    let chart_count = 2u16;
+    let total_height = CHART_MIN_HEIGHT.saturating_mul(chart_count);
+    let max_scroll = total_height.saturating_sub(area.height);
+    sidebar.scroll = sidebar.scroll.min(max_scroll);
+
+    let slot = |index: u16| {
+        let y = area.y.saturating_add(index * CHART_MIN_HEIGHT).saturating_sub(sidebar.scroll);
+        Rect {
+            x: area.x,
+            y,
+            width: area.width.saturating_sub(1),
+            height: CHART_MIN_HEIGHT,
+        }
+    };
+    if let Some(visible) = clip_rect(slot(0), area) {
+        render_population_chart(frame, visible, history);
+    }
+    if let Some(visible) = clip_rect(slot(1), area) {
+        render_chart(frame, visible, dinos);
+    }
+
+    if max_scroll > 0 {
+        let mut state = ScrollbarState::new(max_scroll as usize).position(sidebar.scroll as usize);
+        frame.render_stateful_widget(
+            Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .begin_symbol(Some("▲"))
+                .end_symbol(Some("▼")),
+            area,
+            &mut state,
+        );
     }
 }
 

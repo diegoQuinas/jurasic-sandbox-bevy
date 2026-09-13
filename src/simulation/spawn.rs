@@ -47,6 +47,14 @@ pub fn spawn_creatures(
         let entity = commands.spawn(dinosaur_bundle(x, y, &family)).id();
         occupancy.set(Position { x, y, z: 3 }, Some(entity));
     }
+
+    for x in 0..=board.width {
+        for y in 0..=board.height {
+            if rng.random_bool(0.3) {
+                commands.spawn(grass_bundle(x, y));
+            }
+        }
+    }
 }
 
 pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle {
@@ -120,10 +128,6 @@ pub fn grass_bundle(x: usize, y: usize) -> impl Bundle {
         Renderable {
             glyph: r#"."#,
             color,
-        },
-        Decay {
-            degradation: 0.0,
-            degradation_threshold: 1.0,
         },
     )
 }

@@ -15,8 +15,10 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 
+use ratatui::layout::Position;
+
 use crate::{
-    ui::{Camera, SideTab},
+    ui::{Camera, SideTab, Sidebar},
     world::Board,
 };
 
@@ -63,6 +65,7 @@ pub struct TuiPlugin;
 impl Plugin for TuiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SideTab>()
+            .init_resource::<Sidebar>()
             .add_systems(Startup, setup_terminal)
             .add_systems(Update, (handle_input, render));
     }
@@ -72,6 +75,7 @@ fn handle_input(
     mut exit: MessageWriter<AppExit>,
     mut camera: ResMut<Camera>,
     mut side_tab: ResMut<SideTab>,
+    mut sidebar: ResMut<Sidebar>,
     board: Res<Board>,
 ) {
     while event::poll(Duration::from_millis(0)).unwrap_or(false) {
@@ -100,22 +104,27 @@ fn handle_input(
                 match key.code {
                     KeyCode::Tab => {
                         *side_tab = side_tab.next();
+                        sidebar.scroll = 0;
                         continue;
                     }
                     KeyCode::BackTab => {
                         *side_tab = side_tab.prev();
+                        sidebar.scroll = 0;
                         continue;
                     }
                     KeyCode::Char('1') => {
                         *side_tab = SideTab::Stats;
+                        sidebar.scroll = 0;
                         continue;
                     }
                     KeyCode::Char('2') => {
                         *side_tab = SideTab::Charts;
+                        sidebar.scroll = 0;
                         continue;
                     }
                     KeyCode::Char('3') => {
                         *side_tab = SideTab::Tps;
+                        sidebar.scroll = 0;
                         continue;
                     }
                     _ => {}
@@ -133,11 +142,46 @@ fn handle_input(
                 camera.move_by(dx, dy, &board, view_w, view_h);
             }
 
-            // === MANEJO DE MOUSE (DESPLAZAMIENTO DEL MAPA) ===
+            // === MANEJO DE MOUSE ===
             Event::Mouse(MouseEvent {
                 kind, column, row, ..
             }) => {
                 match kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        if sidebar.is_resize_handle(column, row) {
+                            sidebar.resizing = true;
+                            camera.is_dragging = false;
+                            continue;
+                        }
+                        if let Some(tab) = sidebar.tab_at(column, row) {
+                            *side_tab = tab;
+                            sidebar.scroll = 0;
+                            continue;
+                        }
+                    }
+                    MouseEventKind::Drag(MouseButton::Left) => {
+                        if sidebar.resizing {
+                            let term_w = sidebar.last_side.x.saturating_add(sidebar.last_side.width);
+                            let new_width = term_w.saturating_sub(column);
+                            sidebar.width = new_width.max(28);
+                            continue;
+                        }
+                    }
+                    MouseEventKind::Up(MouseButton::Left) => {
+                        sidebar.resizing = false;
+                    }
+                    MouseEventKind::ScrollUp => {
+                        let pos = Position::new(column, row);
+                        if sidebar.last_content.contains(pos) || sidebar.last_side.contains(pos) {
+                            sidebar.scroll = sidebar.scroll.saturating_sub(2);
+                        }
+                    }
+                    MouseEventKind::ScrollDown => {
+                        let pos = Position::new(column, row);
+                        if sidebar.last_content.contains(pos) || sidebar.last_side.contains(pos) {
+                            sidebar.scroll = sidebar.scroll.saturating_add(2);
+                        }
+                    }
                     MouseEventKind::Down(MouseButton::Middle) => {
                         camera.is_dragging = true;
                         camera.last_mouse_pos = Some((column, row));

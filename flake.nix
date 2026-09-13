@@ -37,6 +37,7 @@
           rustAnalyzer
           pkgs.cargo-binstall
           pkgs.cargo-edit
+          pkgs.cargo-watch
         ];
         RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
       };
