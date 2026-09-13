@@ -25,9 +25,11 @@ pub fn seek_herbivore_food_system(
     let mut reserved: HashSet<Entity> = HashSet::new();
     let mut plant_owner: HashMap<Entity, Entity> = HashMap::new();
     for (dino_e, dino_pos, _) in dinos.iter() {
-        let adjacent_plant = neighborhood(*dino_pos)
-            .into_iter()
-            .find_map(|cell| world_map.entity_at(cell).filter(|e| plants_query.get(*e).is_ok()));
+        let adjacent_plant = neighborhood(*dino_pos).into_iter().find_map(|cell| {
+            world_map
+                .entity_at(cell)
+                .filter(|e| plants_query.get(*e).is_ok())
+        });
         if let Some(plant_e) = adjacent_plant {
             plant_owner.entry(plant_e).or_insert(dino_e);
             reserved.insert(plant_e);

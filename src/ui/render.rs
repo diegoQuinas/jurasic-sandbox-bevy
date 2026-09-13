@@ -374,8 +374,17 @@ fn render_scrollable_charts(
     sidebar: &mut Sidebar,
 ) {
     let chart_count = 2u16;
-    let total_height = CHART_MIN_HEIGHT.saturating_mul(chart_count);
-    let max_scroll = total_height.saturating_sub(area.height);
+    let min_total = CHART_MIN_HEIGHT.saturating_mul(chart_count);
+
+    if area.height >= min_total {
+        sidebar.scroll = 0;
+        let chunks = Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).split(area);
+        render_population_chart(frame, chunks[0], history);
+        render_chart(frame, chunks[1], dinos);
+        return;
+    }
+
+    let max_scroll = min_total.saturating_sub(area.height);
     sidebar.scroll = sidebar.scroll.min(max_scroll);
 
     let slot = |index: u16| {
