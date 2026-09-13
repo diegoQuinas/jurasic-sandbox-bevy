@@ -9,6 +9,7 @@ pub use food::{herbivore_eating_system, seek_herbivore_food_system, spawn_random
 pub use lifecycle::{
     death_system, decay_system, degrade_corpose_color_system, degrade_plant_color_system,
     healing_system, hunger_system, mature_eggs_system, maturing_system, starving_system,
+    wander_system,
 };
-pub use population::{sample_population_system, PopulationHistory, SampleTimer};
+pub use population::{PopulationHistory, SampleTimer, sample_population_system};
 pub use reproduction::{increase_desire_system, lay_eggs_system, reproduction_system};

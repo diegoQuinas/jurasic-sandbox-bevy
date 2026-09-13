@@ -1,10 +1,11 @@
-use bevy::prelude::*;
-use rand::{RngExt, rng};
+use bevy::{math::cubic_splines::CubicNurbsError::DescendingKnots, prelude::*};
+use rand::{RngExt, rng, seq::SliceRandom};
 
 use crate::{
     simulation::{
-        Corpse, DinoState, Maturity,
+        Corpse, DinoState, Direction, Maturity,
         components::{Decay, DinosaurStats, Egg, Health, Hunger, Plant},
+        movement::step,
         spawn::{corpse_bundle, dinosaur_bundle},
     },
     world::{Occupancy, Position, Renderable, WorldMap},
@@ -121,7 +122,11 @@ pub fn degrade_corpose_color_system(query: Query<(&Decay, &Corpse, &mut Renderab
         let color = if degradation < ROTTEN_END {
             lerp_rgb(original, rotten, degradation / ROTTEN_END)
         } else if degradation < BONE_END {
-            lerp_rgb(rotten, BONE, (degradation - ROTTEN_END) / (BONE_END - ROTTEN_END))
+            lerp_rgb(
+                rotten,
+                BONE,
+                (degradation - ROTTEN_END) / (BONE_END - ROTTEN_END),
+            )
         } else {
             (BONE.0 as u8, BONE.1 as u8, BONE.2 as u8)
         };
@@ -162,6 +167,26 @@ pub fn decay_system(
         if d.degradation >= d.degradation_threshold {
             occupancy.set(*p, None);
             commands.entity(e).despawn();
+        }
+    }
+}
+
+pub fn wander_system(query: Query<(Entity, &mut Position, &DinoState)>, mut world: WorldMap) {
+    let mut rng = rng();
+    for (entity, mut pos, dino_state) in query {
+        if *dino_state != DinoState::Wandering {
+            continue;
+        }
+
+        let mut shuffled_directions = Direction::ALL;
+        shuffled_directions.shuffle(&mut rng);
+
+        for dir in shuffled_directions {
+            let target = step(*pos, dir);
+            if world.is_free(target) {
+                world.move_entity(entity, *pos, target);
+                *pos = target;
+            }
         }
     }
 }

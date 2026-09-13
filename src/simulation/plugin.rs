@@ -10,10 +10,10 @@ use crate::{
 use super::{
     spawn::spawn_creatures,
     systems::{
-        death_system, decay_system, dino_decision_system, healing_system, herbivore_eating_system,
-        hunger_system, lay_eggs_system, mature_eggs_system, maturing_system, reproduction_system,
-        sample_population_system, seek_herbivore_food_system, spawn_random_plants_system,
-        starving_system, PopulationHistory, SampleTimer,
+        PopulationHistory, SampleTimer, death_system, decay_system, dino_decision_system,
+        healing_system, herbivore_eating_system, hunger_system, lay_eggs_system,
+        mature_eggs_system, maturing_system, reproduction_system, sample_population_system,
+        seek_herbivore_food_system, spawn_random_plants_system, starving_system, wander_system,
     },
 };
 
@@ -37,6 +37,7 @@ impl Plugin for CreaturesPlugin {
                     hunger_system,
                     starving_system,
                     healing_system,
+                    wander_system,
                     maturing_system,
                     death_system,
                     decay_system,
