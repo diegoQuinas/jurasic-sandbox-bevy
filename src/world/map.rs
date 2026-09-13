@@ -17,6 +17,11 @@ impl<'w> WorldMap<'w> {
         self.board.is_inside(pos) && !self.occupancy.is_occupied(pos)
     }
 
+    /// `None` for both an empty tile and an out-of-bounds position.
+    pub fn entity_at(&self, pos: Position) -> Option<Entity> {
+        self.occupancy.get(pos)
+    }
+
     pub fn move_entity(&mut self, entity: Entity, from: Position, to: Position) {
         self.occupancy.set(from, None);
         self.occupancy.set(to, Some(entity));

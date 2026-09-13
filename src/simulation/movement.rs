@@ -43,6 +43,15 @@ fn neighbor_free(pos: &Position, dir: Direction, world: &WorldMap) -> bool {
     world.is_free(step(*pos, dir))
 }
 
+/// `pos` itself plus its 8 neighbors — every cell within Chebyshev distance 1.
+pub fn neighborhood(pos: Position) -> [Position; 9] {
+    let mut cells = [pos; 9];
+    for (i, dir) in Direction::ALL.into_iter().enumerate() {
+        cells[i + 1] = step(pos, dir);
+    }
+    cells
+}
+
 fn dir_from_signs(sx: i8, sy: i8) -> Direction {
     match (sx, sy) {
         (1, 0) => Direction::East,

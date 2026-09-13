@@ -25,7 +25,7 @@ impl Plugin for CreaturesPlugin {
             .insert_resource(SampleTimer(Timer::from_seconds(1.0, TimerMode::Repeating)))
             .add_systems(Startup, spawn_creatures.in_set(StartupSet::Creatures))
             .add_systems(
-                Update,
+                FixedUpdate,
                 (
                     mature_eggs_system,
                     dino_decision_system,

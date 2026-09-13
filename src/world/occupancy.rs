@@ -20,10 +20,10 @@ impl Occupancy {
         }
     }
 
+    /// `None` for both an empty cell and an out-of-bounds position.
     #[inline]
-    #[allow(dead_code)]
     pub fn get(&self, pos: Position) -> Option<Entity> {
-        self.cells[self.index(pos)]
+        self.try_index(pos).and_then(|index| self.cells[index])
     }
 
     #[inline]
@@ -31,12 +31,6 @@ impl Occupancy {
         if let Some(index) = self.try_index(pos) {
             self.cells[index] = entity;
         }
-    }
-
-    #[inline]
-    pub fn index(&self, pos: Position) -> usize {
-        self.try_index(pos)
-            .unwrap_or_else(|| panic!("occupancy index out of bounds: ({}, {})", pos.x, pos.y))
     }
 
     #[inline]

@@ -18,6 +18,7 @@ fn main() {
     App::new()
         .init_resource::<Performance>()
         .init_resource::<SystemPerformance>()
+        .insert_resource(Time::<Fixed>::from_hz(120.0))
         .configure_sets(Startup, (StartupSet::Board, StartupSet::Creatures).chain())
         .add_systems(Update, performance_system)
         .add_plugins(BoardPlugin)

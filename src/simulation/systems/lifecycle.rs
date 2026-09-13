@@ -151,7 +151,7 @@ pub fn decay_system(
 ) {
     let mut rng = rng();
     for (e, p, mut d) in &mut corpses {
-        d.increase(rng.random_range(0.0004..=0.002));
+        d.increase(rng.random_range(0.004..=0.02));
         if d.degradation >= d.degradation_threshold {
             occupancy.set(*p, None);
             commands.entity(e).despawn();
