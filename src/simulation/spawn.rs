@@ -58,7 +58,6 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle
             glyph: "D",
             color: genes.color,
         },
-        Mortal {},
         Herbivore {},
         Maturity(0.0),
         Desire(0.0),
@@ -80,16 +79,16 @@ pub fn egg_bundle(x: usize, y: usize, genes: DinosaurStats) -> impl Bundle {
     )
 }
 
-pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
+pub fn corpse_bundle(x: usize, y: usize, original_color: (u8, u8, u8)) -> impl Bundle {
     (
-        Corpse,
+        Corpse { original_color },
         Renderable {
             glyph: "%",
-            color: (255, 0, 0), // Red
+            color: original_color,
         },
         Position { x, y, z: 0 },
         Decay {
-            degradation_threshold: 1.0,
+            degradation_threshold: 4.0,
             degradation: 0.0,
         },
     )
@@ -98,7 +97,10 @@ pub fn corpse_bundle(x: usize, y: usize) -> impl Bundle {
 pub fn plant_bundle(x: usize, y: usize) -> impl Bundle {
     let color = random_green();
     (
-        Plant { health: 7 },
+        Plant {
+            health: 7,
+            original_color: color,
+        },
         Position { x, y, z: 2 },
         Renderable {
             glyph: "🌳", color

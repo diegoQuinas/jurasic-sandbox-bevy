@@ -4,15 +4,17 @@ use rand::{RngExt, rng};
 use crate::{
     simulation::{
         Corpse, DinoState, Maturity,
-        components::{Decay, DinosaurStats, Egg, Health, Hunger, Mortal},
+        components::{Decay, DinosaurStats, Egg, Health, Hunger, Plant},
         spawn::{corpse_bundle, dinosaur_bundle},
     },
     world::{Occupancy, Position, Renderable, WorldMap},
 };
 
 pub fn maturing_system(query: Query<(&mut Maturity, &DinosaurStats)>) {
+    let mut rng = rng();
     for (mut maturity, stats) in query {
-        let increasement = stats.metabolism * 0.001;
+        let random_multiplier = rng.random_range(0.0..=10.0);
+        let increasement = stats.metabolism * 0.0001 * random_multiplier;
         maturity.increase(increasement);
     }
 }
@@ -54,14 +56,14 @@ pub fn starving_system(query: Query<(&Hunger, &DinosaurStats, &mut Health)>) {
 
 pub fn death_system(
     mut commands: Commands,
-    query: Query<(Entity, &Position, &DinoState), With<Mortal>>,
+    query: Query<(Entity, &Position, &DinoState, &DinosaurStats)>,
     mut world: WorldMap,
 ) {
-    for (e, p, s) in query {
+    for (e, p, s, d_s) in query {
         if *s != DinoState::Dieing {
             continue;
         } else {
-            commands.spawn(corpse_bundle(p.x, p.y));
+            commands.spawn(corpse_bundle(p.x, p.y, d_s.color));
             world.set_free(*p);
             commands.entity(e).despawn();
         }
@@ -78,62 +80,85 @@ pub fn healing_system(query: Query<(&mut Health, &DinoState)>) {
     }
 }
 
-pub fn degrade_corpose_color_system(query: Query<(&Decay, &mut Renderable), With<Corpse>>) {
-    for (decay, mut renderable) in query {
-        let degradation = decay.degradation;
+fn smoothstep(t: f64) -> f64 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
 
-        let color = if degradation < 0.3 {
-            let t = degradation / 0.3;
+fn lerp_rgb(from: (f64, f64, f64), to: (f64, f64, f64), t: f64) -> (u8, u8, u8) {
+    let t = smoothstep(t);
+    (
+        (from.0 + (to.0 - from.0) * t) as u8,
+        (from.1 + (to.1 - from.1) * t) as u8,
+        (from.2 + (to.2 - from.2) * t) as u8,
+    )
+}
 
-            // Rojo -> verde podrido
-            let r = 180.0 + (70.0 - 180.0) * t;
-            let g = 30.0 + (90.0 - 30.0) * t;
-            let b = 25.0 + (35.0 - 25.0) * t;
+/// Olive-brown rot that still reads as a sick version of the living color.
+fn rotten_from(original: (f64, f64, f64)) -> (f64, f64, f64) {
+    (
+        original.0 * 0.35 + 72.0 * 0.45,
+        original.1 * 0.40 + 88.0 * 0.40,
+        original.2 * 0.20 + 38.0 * 0.35,
+    )
+}
 
-            (r as u8, g as u8, b as u8)
+pub fn degrade_corpose_color_system(query: Query<(&Decay, &Corpse, &mut Renderable)>) {
+    for (decay, corpse, mut renderable) in query {
+        let degradation = decay.degradation.max(0.0);
+        let original = (
+            corpse.original_color.0 as f64,
+            corpse.original_color.1 as f64,
+            corpse.original_color.2 as f64,
+        );
+        let rotten = rotten_from(original);
+        const BONE: (f64, f64, f64) = (176.0, 176.0, 176.0);
+
+        // Fast visual phases; the rest of the corpse lifetime stays bone.
+        const ROTTEN_END: f64 = 0.06;
+        const BONE_END: f64 = 0.16;
+
+        let color = if degradation < ROTTEN_END {
+            lerp_rgb(original, rotten, degradation / ROTTEN_END)
+        } else if degradation < BONE_END {
+            lerp_rgb(rotten, BONE, (degradation - ROTTEN_END) / (BONE_END - ROTTEN_END))
         } else {
-            let t = (degradation - 0.3) / 0.7;
-
-            // Verde podrido -> gris hueso
-            let r = 70.0 + (145.0 - 70.0) * t;
-            let g = 90.0 + (140.0 - 90.0) * t;
-            let b = 35.0 + (120.0 - 35.0) * t;
-
-            (r as u8, g as u8, b as u8)
+            (BONE.0 as u8, BONE.1 as u8, BONE.2 as u8)
         };
 
         renderable.color = color;
     }
 }
 
-pub fn degrade_plant_color_system(query: Query<(&Decay, &mut Renderable), With<Corpse>>) {
-    for (decay, mut renderable) in query {
-        let original = renderable.color;
-        let degradation = decay.degradation;
-
-        let degradation = degradation.clamp(0.0, 1.0);
-
-        let target = (200.0, 180.0, 30.0);
-
-        let r = original.0 as f64 + (target.0 - original.0 as f64) * degradation;
-        let g = original.1 as f64 + (target.1 - original.1 as f64) * degradation;
-        let b = original.2 as f64 + (target.2 - original.2 as f64) * degradation;
-
-        let color = (r as u8, g as u8, b as u8);
-
-        renderable.color = color;
+pub fn degrade_plant_color_system(query: Query<(&Decay, &Plant, &mut Renderable)>) {
+    for (decay, plant, mut renderable) in query {
+        let t = decay.degradation.clamp(0.0, 1.0);
+        let original = (
+            plant.original_color.0 as f64,
+            plant.original_color.1 as f64,
+            plant.original_color.2 as f64,
+        );
+        let target = (140.0, 110.0, 40.0);
+        renderable.color = lerp_rgb(original, target, t);
     }
 }
+
 pub fn decay_system(
     mut commands: Commands,
-    query: Query<(Entity, &Position, &mut Decay)>,
+    mut corpses: Query<(Entity, &Position, &mut Decay), With<Corpse>>,
+    mut other: Query<(Entity, &Position, &mut Decay), Without<Corpse>>,
     mut occupancy: ResMut<Occupancy>,
 ) {
     let mut rng = rng();
-    for (e, p, mut d) in query {
-        let random = rng.random_range(0.001..=0.010);
-        d.increase(random);
-
+    for (e, p, mut d) in &mut corpses {
+        d.increase(rng.random_range(0.0004..=0.002));
+        if d.degradation >= d.degradation_threshold {
+            occupancy.set(*p, None);
+            commands.entity(e).despawn();
+        }
+    }
+    for (e, p, mut d) in &mut other {
+        d.increase(rng.random_range(0.00001..=0.0001));
         if d.degradation >= d.degradation_threshold {
             occupancy.set(*p, None);
             commands.entity(e).despawn();

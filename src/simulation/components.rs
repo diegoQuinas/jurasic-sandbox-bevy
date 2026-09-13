@@ -91,14 +91,14 @@ impl Maturity {
 }
 
 #[derive(Component)]
-pub struct Mortal {}
-
-#[derive(Component)]
-pub struct Corpse;
+pub struct Corpse {
+    pub original_color: (u8, u8, u8),
+}
 
 #[derive(Component)]
 pub struct Plant {
     pub health: u32,
+    pub original_color: (u8, u8, u8),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -184,10 +184,6 @@ pub struct Grass;
 
 impl Decay {
     pub fn increase(&mut self, amount: f64) {
-        if self.degradation <= 1.0 {
-            self.degradation += amount;
-        } else {
-            self.degradation = 1.0
-        }
+        self.degradation = (self.degradation + amount).min(self.degradation_threshold);
     }
 }
