@@ -1,0 +1,17 @@
+
+[jobs.check]
+command = ["cargo", "check"]
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--all-targets", "--all-features"]
+
+[jobs.test]
+command = ["cargo", "test", "--all-features"]
+
+[jobs.all]
+command = [
+  "bash",
+  "-c",
+  "cargo clippy --all-targets --all-features && cargo test --all-features"
+]
+need_stdout = true
