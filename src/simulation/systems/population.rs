@@ -34,9 +34,18 @@ pub fn sample_population_system(
     history.elapsed += timer.0.duration().as_secs_f64();
     let t = history.elapsed;
 
-    history.dinos.push((t, dinos.iter().count() as f64));
-    history.plants.push((t, plants.iter().count() as f64));
-    history.eggs.push((t, eggs.iter().count() as f64));
-    history.corpses.push((t, corpses.iter().count() as f64));
-    history.tps.push((t, performance.ticks_per_second as f64));
+    push_sample(&mut history.dinos, (t, dinos.iter().count() as f64));
+    push_sample(&mut history.plants, (t, plants.iter().count() as f64));
+    push_sample(&mut history.eggs, (t, eggs.iter().count() as f64));
+    push_sample(&mut history.corpses, (t, corpses.iter().count() as f64));
+    push_sample(&mut history.tps, (t, performance.ticks_per_second as f64));
+}
+
+const MAX_HISTORY: usize = 360;
+
+fn push_sample(series: &mut Vec<(f64, f64)>, point: (f64, f64)) {
+    series.push(point);
+    if series.len() > MAX_HISTORY * 2 {
+        *series = series.iter().step_by(2).copied().collect();
+    }
 }

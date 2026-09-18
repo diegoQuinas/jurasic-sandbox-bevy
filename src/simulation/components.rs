@@ -9,7 +9,7 @@ pub struct Egg {
 pub struct Health(pub f64);
 
 impl Health {
-    pub fn health(&self) -> f64 {
+    pub const fn health(&self) -> f64 {
         self.0
     }
     pub fn decrease(&mut self, amount: f64) {
@@ -31,11 +31,11 @@ impl Health {
 pub struct Desire(pub f64);
 
 impl Desire {
-    pub fn desire(&self) -> f64 {
+    pub const fn desire(self) -> f64 {
         self.0
     }
 
-    pub fn set_to_zero(&mut self) {
+    pub const fn set_to_zero(&mut self) {
         self.0 = 0.0;
     }
 
@@ -53,7 +53,7 @@ impl Desire {
 pub struct Hunger(pub f64);
 
 impl Hunger {
-    pub fn hunger(&self) -> f64 {
+    pub const fn hunger(&self) -> f64 {
         self.0
     }
 
@@ -77,7 +77,7 @@ impl Hunger {
 pub struct Maturity(pub f64);
 
 impl Maturity {
-    pub fn maturity(&self) -> f64 {
+    pub const fn maturity(&self) -> f64 {
         self.0
     }
 
@@ -114,15 +114,15 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub const ALL: [Direction; 8] = [
-        Direction::North,
-        Direction::South,
-        Direction::East,
-        Direction::West,
-        Direction::NorthEast,
-        Direction::NorthWest,
-        Direction::SouthEast,
-        Direction::SouthWest,
+    pub const ALL: [Self; 8] = [
+        Self::North,
+        Self::South,
+        Self::East,
+        Self::West,
+        Self::NorthEast,
+        Self::NorthWest,
+        Self::SouthEast,
+        Self::SouthWest,
     ];
 }
 
@@ -153,17 +153,17 @@ impl DinoState {
     /// Food always wins over mating; a pregnant dino only lays.
     pub fn decide(is_pregnant: bool, hunger: f64, maturity: f64, health: f64, desire: f64) -> Self {
         if maturity >= 1.0 || health <= 0.0 {
-            DinoState::Dieing
+            Self::Dieing
         } else if is_pregnant {
-            DinoState::LayingEgg
+            Self::LayingEgg
         } else if hunger > 0.0 {
-            DinoState::SeekingFood
+            Self::SeekingFood
         } else if health < 1.0 {
-            DinoState::Healing
+            Self::Healing
         } else if desire >= 1.0 && maturity > 0.3 {
-            DinoState::SeekingPartner
+            Self::SeekingPartner
         } else {
-            DinoState::Wandering
+            Self::Wandering
         }
     }
 }

@@ -1,4 +1,4 @@
-use bevy::{math::cubic_splines::CubicNurbsError::DescendingKnots, prelude::*};
+use bevy::prelude::*;
 use rand::{RngExt, rng, seq::SliceRandom};
 
 use crate::{
@@ -28,14 +28,10 @@ pub fn mature_eggs_system(
     for (entity, mut egg, pos, genes) in query {
         if egg.age < 90 {
             egg.age = egg.age.saturating_add(1);
-        } else {
-            if world.is_free(*pos) {
-                let dino = commands.spawn(dinosaur_bundle(pos.x, pos.y, genes)).id();
-                world.set_occupied(dino, *pos);
-                commands.entity(entity).despawn();
-            } else {
-                continue;
-            }
+        } else if world.is_free(*pos) {
+            let dino = commands.spawn(dinosaur_bundle(pos.x, pos.y, genes)).id();
+            world.set_occupied(dino, *pos);
+            commands.entity(entity).despawn();
         }
     }
 }
@@ -63,11 +59,10 @@ pub fn death_system(
     for (e, p, s, d_s) in query {
         if *s != DinoState::Dieing {
             continue;
-        } else {
-            commands.spawn(corpse_bundle(p.x, p.y, d_s.color));
-            world.set_free(*p);
-            commands.entity(e).despawn();
         }
+        commands.spawn(corpse_bundle(p.x, p.y, d_s.color));
+        world.set_free(*p);
+        commands.entity(e).despawn();
     }
 }
 
@@ -75,36 +70,38 @@ pub fn healing_system(query: Query<(&mut Health, &DinoState)>) {
     for (mut health, state) in query {
         if *state != DinoState::Healing {
             continue;
-        } else {
-            health.increase(0.01);
         }
+        health.increase(0.01);
     }
 }
 
 fn smoothstep(t: f64) -> f64 {
     let t = t.clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
+    t * t * 2.0f64.mul_add(-t, 3.0)
 }
 
 fn lerp_rgb(from: (f64, f64, f64), to: (f64, f64, f64), t: f64) -> (u8, u8, u8) {
     let t = smoothstep(t);
     (
-        (from.0 + (to.0 - from.0) * t) as u8,
-        (from.1 + (to.1 - from.1) * t) as u8,
-        (from.2 + (to.2 - from.2) * t) as u8,
+        (to.0 - from.0).mul_add(t, from.0) as u8,
+        (to.1 - from.1).mul_add(t, from.1) as u8,
+        (to.2 - from.2).mul_add(t, from.2) as u8,
     )
 }
 
 /// Olive-brown rot that still reads as a sick version of the living color.
 fn rotten_from(original: (f64, f64, f64)) -> (f64, f64, f64) {
     (
-        original.0 * 0.35 + 72.0 * 0.45,
-        original.1 * 0.40 + 88.0 * 0.40,
-        original.2 * 0.20 + 38.0 * 0.35,
+        72.0f64.mul_add(0.45, original.0 * 0.35),
+        88.0f64.mul_add(0.40, original.1 * 0.40),
+        38.0f64.mul_add(0.35, original.2 * 0.20),
     )
 }
 
 pub fn degrade_corpose_color_system(query: Query<(&Decay, &Corpse, &mut Renderable)>) {
+    const BONE: (f64, f64, f64) = (176.0, 176.0, 176.0);
+    const ROTTEN_END: f64 = 0.06;
+    const BONE_END: f64 = 0.16;
     for (decay, corpse, mut renderable) in query {
         let degradation = decay.degradation.max(0.0);
         let original = (
@@ -113,11 +110,6 @@ pub fn degrade_corpose_color_system(query: Query<(&Decay, &Corpse, &mut Renderab
             corpse.original_color.2 as f64,
         );
         let rotten = rotten_from(original);
-        const BONE: (f64, f64, f64) = (176.0, 176.0, 176.0);
-
-        // Fast visual phases; the rest of the corpse lifetime stays bone.
-        const ROTTEN_END: f64 = 0.06;
-        const BONE_END: f64 = 0.16;
 
         let color = if degradation < ROTTEN_END {
             lerp_rgb(original, rotten, degradation / ROTTEN_END)

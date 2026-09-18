@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 use ratatui::{
     Frame,
-    layout::{Constraint, Layout, Margin, Position as CellPos, Rect},
+    layout::{Constraint, Layout, Margin, Position as CellPos, Rect, Size},
     style::{Color, Modifier, Style, Stylize},
     symbols::Marker,
     text::{Line, Span},
@@ -43,7 +43,7 @@ pub enum SideTab {
 impl SideTab {
     const COUNT: usize = 3;
 
-    fn index(self) -> usize {
+    const fn index(self) -> usize {
         match self {
             Self::Stats => 0,
             Self::Charts => 1,
@@ -51,7 +51,7 @@ impl SideTab {
         }
     }
 
-    fn from_index(index: usize) -> Self {
+    const fn from_index(index: usize) -> Self {
         match index % Self::COUNT {
             1 => Self::Charts,
             2 => Self::Tps,
@@ -59,15 +59,15 @@ impl SideTab {
         }
     }
 
-    pub fn next(self) -> Self {
+    pub const fn next(self) -> Self {
         Self::from_index(self.index() + 1)
     }
 
-    pub fn prev(self) -> Self {
+    pub const fn prev(self) -> Self {
         Self::from_index(self.index() + Self::COUNT - 1)
     }
 
-    fn titles() -> [&'static str; 3] {
+    const fn titles() -> [&'static str; 3] {
         ["Stats", "Charts", "TPS"]
     }
 }
@@ -158,6 +158,8 @@ impl Default for Sidebar {
 
 impl Sidebar {
     pub fn tab_at(&self, column: u16, row: u16) -> Option<SideTab> {
+        const PAD: u16 = 1;
+        const DIVIDER_WIDTH: u16 = 3;
         if !self.last_tabs.contains(CellPos::new(column, row)) {
             return None;
         }
@@ -166,8 +168,6 @@ impl Sidebar {
         if inner.width == 0 || column < inner.x {
             return None;
         }
-        const PAD: u16 = 1;
-        const DIVIDER_WIDTH: u16 = 3;
         let titles = SideTab::titles();
         let mut x = inner.x;
         for (i, title) in titles.iter().enumerate() {
@@ -191,7 +191,7 @@ impl Sidebar {
             .map(|(_, hit)| *hit)
     }
 
-    pub fn is_resize_handle(&self, column: u16, row: u16) -> bool {
+    pub const fn is_resize_handle(&self, column: u16, row: u16) -> bool {
         if self.last_side.height == 0 {
             return false;
         }
@@ -206,7 +206,7 @@ impl Sidebar {
 }
 
 impl Camera {
-    pub fn new(x: usize, y: usize) -> Self {
+    pub const fn new(x: usize, y: usize) -> Self {
         Self {
             x,
             y,
@@ -243,13 +243,41 @@ pub fn render(
     charts: Res<ChartSelection>,
     _systems_performance: Res<SystemPerformance>,
 ) {
+    let term_size = terminal.0.size().unwrap_or(Size {
+        width: 80,
+        height: 24,
+    });
+    let main_h = term_size.height.saturating_sub(2);
+    let side_width = sidebar.clamp_width(term_size.width);
+    let board_w = term_size.width.saturating_sub(side_width);
+    let board_preview = Rect {
+        x: 0,
+        y: 2,
+        width: board_w,
+        height: main_h,
+    };
+    let (view_w, view_h) = BoardWidget::viewport_size(board_preview);
+    camera.last_view_w = view_w;
+    camera.last_view_h = view_h;
+    camera.x = camera.x.min(board.width.saturating_sub(view_w));
+    camera.y = camera.y.min(board.height.saturating_sub(view_h));
+    let cam_x = camera.x;
+    let cam_y = camera.y;
+
     let mut visible: HashMap<(usize, usize), (usize, &Renderable)> = HashMap::new();
     for (position, renderable) in entity_renderables.iter() {
+        if position.x < cam_x
+            || position.y < cam_y
+            || position.x >= cam_x + view_w
+            || position.y >= cam_y + view_h
+        {
+            continue;
+        }
         visible
             .entry((position.x, position.y))
             .and_modify(|current| {
                 if position.z > current.0 {
-                    *current = (position.z, renderable)
+                    *current = (position.z, renderable);
                 }
             })
             .or_insert((position.z, renderable));
@@ -262,94 +290,69 @@ pub fn render(
     let entity_count = entities.count();
     let ticks_per_second = performance.ticks_per_second;
 
-    terminal
-        .0
-        .draw(|frame| {
-            let title = Line::from_iter([
-                Span::from("Jurassic Sandbox").bold(),
-                Span::from(
-                    "  q / Ctrl+C quit  ·  click tabs  ·  drag sidebar  ·  Tab  ·  arrows pan",
-                ),
-            ]);
+    let _ = terminal.0.draw(|frame| {
+        let title = Line::from_iter([
+            Span::from("Jurassic Sandbox").bold(),
+            Span::from("  q / Ctrl+C quit  ·  click tabs  ·  drag sidebar  ·  Tab  ·  arrows pan"),
+        ]);
 
-            let root = Layout::vertical([
-                Constraint::Length(1),
-                Constraint::Fill(1),
-            ])
-            .spacing(1);
-            let [top, main] = frame.area().layout(&root);
-            frame.render_widget(title.centered(), top);
+        let root = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).spacing(1);
+        let [top, main] = frame.area().layout(&root);
+        frame.render_widget(title.centered(), top);
 
-            let side_width = sidebar.clamp_width(main.width);
-            sidebar.width = side_width;
-            let cols = Layout::horizontal([
-                Constraint::Fill(1),
-                Constraint::Length(side_width),
-            ])
-            .split(main);
-            let board_area = cols[0];
-            let side_area = cols[1];
-            sidebar.last_side = side_area;
+        let side_width = sidebar.clamp_width(main.width);
+        sidebar.width = side_width;
+        let cols =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(side_width)]).split(main);
+        let board_area = cols[0];
+        let side_area = cols[1];
+        sidebar.last_side = side_area;
 
-            let (view_w, view_h) = BoardWidget::viewport_size(board_area);
-            camera.last_view_w = view_w;
-            camera.last_view_h = view_h;
-            camera.x = camera.x.min(board.width.saturating_sub(view_w));
-            camera.y = camera.y.min(board.height.saturating_sub(view_h));
+        frame.render_widget(
+            BoardWidget {
+                camera_x: camera.x,
+                camera_y: camera.y,
+                tiles: &visible,
+            },
+            board_area,
+        );
 
-            frame.render_widget(
-                BoardWidget {
-                    camera_x: camera.x,
-                    camera_y: camera.y,
-                    tiles: &visible,
-                },
-                board_area,
-            );
+        let side = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).split(side_area);
+        sidebar.last_tabs = side[0];
+        sidebar.last_content = side[1];
+        let tabs = Tabs::new(SideTab::titles())
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .title("Inspect  click / [1-3]  ·  drag │"),
+            )
+            .select(side_tab.index())
+            .highlight_style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+            )
+            .divider(" │ ");
+        frame.render_widget(tabs, side[0]);
 
-            let side = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).split(side_area);
-            sidebar.last_tabs = side[0];
-            sidebar.last_content = side[1];
-            let tabs = Tabs::new(SideTab::titles())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_type(BorderType::Rounded)
-                        .title("Inspect  click / [1-3]  ·  drag │"),
-                )
-                .select(side_tab.index())
-                .highlight_style(
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
-                )
-                .divider(" │ ");
-            frame.render_widget(tabs, side[0]);
-
-            match *side_tab {
-                SideTab::Stats => render_stats(
-                    frame,
-                    side[1],
-                    dinos_count,
-                    plant_count,
-                    egg_count,
-                    corpse_count,
-                    entity_count,
-                    ticks_per_second,
-                ),
-                SideTab::Charts => {
-                    render_scrollable_charts(
-                        frame,
-                        side[1],
-                        &history,
-                        dinos,
-                        &mut sidebar,
-                        &charts,
-                    );
-                }
-                SideTab::Tps => render_tps_chart(frame, side[1], &history),
+        match *side_tab {
+            SideTab::Stats => render_stats(
+                frame,
+                side[1],
+                dinos_count,
+                plant_count,
+                egg_count,
+                corpse_count,
+                entity_count,
+                ticks_per_second,
+            ),
+            SideTab::Charts => {
+                render_scrollable_charts(frame, side[1], &history, dinos, &mut sidebar, &charts);
             }
-        })
-        .expect("failed to draw TUI");
+            SideTab::Tps => render_tps_chart(frame, side[1], &history),
+        }
+    });
 }
 
 fn render_stats(
@@ -389,7 +392,7 @@ struct BoardWidget<'a> {
 }
 
 impl BoardWidget<'_> {
-    fn viewport_size(area: Rect) -> (usize, usize) {
+    const fn viewport_size(area: Rect) -> (usize, usize) {
         let cols = ((area.width.saturating_sub(2)) / 2) as usize;
         let rows = (area.height.saturating_sub(2)) as usize;
         (cols, rows)
@@ -415,8 +418,7 @@ impl Widget for BoardWidget<'_> {
                 let (glyph, color) = self
                     .tiles
                     .get(&(world_x, world_y))
-                    .map(|(_, r)| (r.glyph, r.color))
-                    .unwrap_or(("  ", (0, 0, 0)));
+                    .map_or(("  ", (0, 0, 0)), |(_, r)| (r.glyph, r.color));
 
                 let cell_x = inner.x + (x * 2) as u16;
                 let cell_y = inner.y + y as u16;
@@ -502,7 +504,9 @@ fn render_scrollable_charts(
 
 fn chip_style(on: bool, color: Color) -> Style {
     if on {
-        Style::default().fg(color).add_modifier(Modifier::BOLD | Modifier::REVERSED)
+        Style::default()
+            .fg(color)
+            .add_modifier(Modifier::BOLD | Modifier::REVERSED)
     } else {
         Style::default().fg(Color::DarkGray)
     }
@@ -646,10 +650,11 @@ fn render_chart(
     let half_count = total_count as u64 / 2;
     let half_count_str = half_count.to_string();
     let total_count_str = total_count.to_string();
-    let y_axis = Axis::default()
-        .title("Share")
-        .bounds([0.0, 1.0])
-        .labels(["0".to_string(), half_count_str, total_count_str]);
+    let y_axis = Axis::default().title("Share").bounds([0.0, 1.0]).labels([
+        "0".to_string(),
+        half_count_str,
+        total_count_str,
+    ]);
 
     let chart = Chart::new(datasets)
         .legend_position(Some(LegendPosition::TopRight))
@@ -729,7 +734,7 @@ fn render_history_chart(
         .labels([
             "0".to_string(),
             format!("{:.0}", max_x / 2.0),
-            format!("{:.0}", max_x),
+            format!("{max_x:.0}"),
         ]);
 
     let y_axis = Axis::default()
@@ -738,7 +743,7 @@ fn render_history_chart(
         .labels([
             "0".to_string(),
             format!("{:.0}", max_y / 2.0),
-            format!("{:.0}", max_y),
+            format!("{max_y:.0}"),
         ]);
 
     let chart = Chart::new(datasets)

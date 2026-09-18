@@ -8,7 +8,10 @@ use rand::{Rng, RngExt, rng, rngs::ThreadRng, seq::IndexedRandom};
 
 use crate::world::{Board, Occupancy, Position, Renderable};
 
-use super::components::*;
+use super::components::{
+    Corpse, Decay, Desire, DinoState, DinosaurStats, Egg, Gender, Grass, Health, Herbivore, Hunger,
+    Maturity, Plant,
+};
 
 pub const STARTING_FAMILIES: u32 = 100;
 
@@ -45,7 +48,7 @@ impl ForestNoise {
 
     pub fn should_spawn_tree(&self, x: usize, y: usize, rng: &mut impl Rng) -> bool {
         let density = self.grove_density(x, y);
-        density > 0.0 && rng.random_bool(0.15 + 0.75 * density)
+        density > 0.0 && rng.random_bool(0.75f64.mul_add(density, 0.15))
     }
 }
 
@@ -121,7 +124,7 @@ pub fn dinosaur_bundle(x: usize, y: usize, genes: &DinosaurStats) -> impl Bundle
         Desire(0.0),
         DinoState::default(),
         Gender(rng().random()),
-        genes.clone(),
+        *genes,
     )
 }
 
@@ -178,13 +181,13 @@ pub fn grass_bundle(x: usize, y: usize) -> impl Bundle {
 pub fn random_grass_glyph() -> &'static str {
     let glyphs = [".", ",", ",", "·", "'", "˙"];
     let mut rng = rng();
-    glyphs.choose(&mut rng).unwrap()
+    glyphs.choose(&mut rng).copied().unwrap_or(".")
 }
 
 pub fn random_plant_glyph() -> &'static str {
     let mut rng = rng();
     let glyphs = ["♣", "♠", "♧", "♤", "♣"];
-    glyphs.choose(&mut rng).unwrap()
+    glyphs.choose(&mut rng).copied().unwrap_or("♣")
 }
 
 fn random_green() -> (u8, u8, u8) {

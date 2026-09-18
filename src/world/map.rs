@@ -12,7 +12,7 @@ pub struct WorldMap<'w> {
     occupancy: ResMut<'w, Occupancy>,
 }
 
-impl<'w> WorldMap<'w> {
+impl WorldMap<'_> {
     pub fn is_free(&self, pos: Position) -> bool {
         self.board.is_inside(pos) && !self.occupancy.is_occupied(pos)
     }

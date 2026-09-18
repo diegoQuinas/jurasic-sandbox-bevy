@@ -34,7 +34,7 @@ impl Occupancy {
     }
 
     #[inline]
-    fn try_index(&self, pos: Position) -> Option<usize> {
+    const fn try_index(&self, pos: Position) -> Option<usize> {
         if pos.x >= self.width || pos.y >= self.height {
             None
         } else {
@@ -46,7 +46,6 @@ impl Occupancy {
     #[inline]
     pub fn is_occupied(&self, pos: Position) -> bool {
         self.try_index(pos)
-            .map(|index| self.cells[index].is_some())
-            .unwrap_or(true)
+            .is_none_or(|index| self.cells[index].is_some())
     }
 }

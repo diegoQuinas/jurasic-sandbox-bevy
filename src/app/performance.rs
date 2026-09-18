@@ -21,11 +21,12 @@ pub struct SystemPerformance {
 }
 
 pub fn performance_system(time: Res<Time>, mut performance: ResMut<Performance>) {
-    performance.ticks += 1;
+    performance.ticks = performance.ticks.saturating_add(1);
     performance.elapsed += time.delta_secs();
 
     if performance.elapsed >= 1.0 {
-        performance.ticks_per_second = performance.ticks as f32 / performance.elapsed;
+        let ticks = u16::try_from(performance.ticks.min(u64::from(u16::MAX))).unwrap_or(u16::MAX);
+        performance.ticks_per_second = f32::from(ticks) / performance.elapsed;
         performance.ticks = 0;
         performance.elapsed = 0.0;
     }

@@ -52,11 +52,18 @@ pub fn setup_terminal(mut commands: Commands) {
         default_hook(info);
     }));
 
-    enable_raw_mode().expect("failed to enable raw mode");
+    if enable_raw_mode().is_err() {
+        return;
+    }
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
-        .expect("failed to enter alternate screen");
-    let terminal = Terminal::new(CrosstermBackend::new(stdout)).expect("failed to create terminal");
+    if execute!(stdout, EnterAlternateScreen, EnableMouseCapture).is_err() {
+        let _ = disable_raw_mode();
+        return;
+    }
+    let Ok(terminal) = Terminal::new(CrosstermBackend::new(stdout)) else {
+        restore_terminal();
+        return;
+    };
     commands.insert_resource(TuiTerminal(terminal));
 }
 
@@ -94,7 +101,7 @@ fn handle_input(
                     continue;
                 }
 
-                let quit = matches!(key.code, KeyCode::Char('q') | KeyCode::Char('Q'))
+                let quit = matches!(key.code, KeyCode::Char('q' | 'Q'))
                     || (key.code == KeyCode::Char('c')
                         && key.modifiers.contains(KeyModifiers::CONTROL));
 
@@ -147,77 +154,73 @@ fn handle_input(
             // === MANEJO DE MOUSE ===
             Event::Mouse(MouseEvent {
                 kind, column, row, ..
-            }) => {
-                match kind {
-                    MouseEventKind::Down(MouseButton::Left) => {
-                        if sidebar.is_resize_handle(column, row) {
-                            sidebar.resizing = true;
-                            camera.is_dragging = false;
-                            continue;
-                        }
-                        if let Some(tab) = sidebar.tab_at(column, row) {
-                            *side_tab = tab;
-                            sidebar.scroll = 0;
-                            continue;
-                        }
-                        if *side_tab == SideTab::Charts {
-                            if let Some(hit) = sidebar.chart_hit_at(column, row) {
-                                charts.toggle(hit);
-                                continue;
-                            }
-                        }
+            }) => match kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    if sidebar.is_resize_handle(column, row) {
+                        sidebar.resizing = true;
+                        camera.is_dragging = false;
+                        continue;
                     }
-                    MouseEventKind::Drag(MouseButton::Left) => {
-                        if sidebar.resizing {
-                            let term_w = sidebar.last_side.x.saturating_add(sidebar.last_side.width);
-                            let new_width = term_w.saturating_sub(column);
-                            sidebar.width = new_width.max(28);
-                            continue;
-                        }
+                    if let Some(tab) = sidebar.tab_at(column, row) {
+                        *side_tab = tab;
+                        sidebar.scroll = 0;
+                        continue;
                     }
-                    MouseEventKind::Up(MouseButton::Left) => {
-                        sidebar.resizing = false;
+                    if *side_tab == SideTab::Charts
+                        && let Some(hit) = sidebar.chart_hit_at(column, row)
+                    {
+                        charts.toggle(hit);
                     }
-                    MouseEventKind::ScrollUp => {
-                        let pos = Position::new(column, row);
-                        if sidebar.last_content.contains(pos) || sidebar.last_side.contains(pos) {
-                            sidebar.scroll = sidebar.scroll.saturating_sub(2);
-                        }
+                }
+                MouseEventKind::Drag(MouseButton::Left) => {
+                    if sidebar.resizing {
+                        let term_w = sidebar.last_side.x.saturating_add(sidebar.last_side.width);
+                        let new_width = term_w.saturating_sub(column);
+                        sidebar.width = new_width.max(28);
                     }
-                    MouseEventKind::ScrollDown => {
-                        let pos = Position::new(column, row);
-                        if sidebar.last_content.contains(pos) || sidebar.last_side.contains(pos) {
-                            sidebar.scroll = sidebar.scroll.saturating_add(2);
-                        }
+                }
+                MouseEventKind::Up(MouseButton::Left) => {
+                    sidebar.resizing = false;
+                }
+                MouseEventKind::ScrollUp => {
+                    let pos = Position::new(column, row);
+                    if sidebar.last_content.contains(pos) || sidebar.last_side.contains(pos) {
+                        sidebar.scroll = sidebar.scroll.saturating_sub(2);
                     }
-                    MouseEventKind::Down(MouseButton::Middle) => {
-                        camera.is_dragging = true;
+                }
+                MouseEventKind::ScrollDown => {
+                    let pos = Position::new(column, row);
+                    if sidebar.last_content.contains(pos) || sidebar.last_side.contains(pos) {
+                        sidebar.scroll = sidebar.scroll.saturating_add(2);
+                    }
+                }
+                MouseEventKind::Down(MouseButton::Middle) => {
+                    camera.is_dragging = true;
+                    camera.last_mouse_pos = Some((column, row));
+                }
+                MouseEventKind::Drag(MouseButton::Middle) | MouseEventKind::Moved => {
+                    if camera.is_dragging
+                        && let Some((last_x, last_y)) = camera.last_mouse_pos
+                    {
+                        let delta_x = column as i32 - last_x as i32;
+                        let delta_y = row as i32 - last_y as i32;
+                        let (view_w, view_h) = (camera.last_view_w, camera.last_view_h);
+                        camera.move_by(
+                            -delta_x as isize,
+                            -delta_y as isize,
+                            &board,
+                            view_w,
+                            view_h,
+                        );
                         camera.last_mouse_pos = Some((column, row));
                     }
-                    MouseEventKind::Drag(MouseButton::Middle) | MouseEventKind::Moved => {
-                        if camera.is_dragging {
-                            if let Some((last_x, last_y)) = camera.last_mouse_pos {
-                                let delta_x = column as i32 - last_x as i32;
-                                let delta_y = row as i32 - last_y as i32;
-                                let (view_w, view_h) = (camera.last_view_w, camera.last_view_h);
-                                camera.move_by(
-                                    -delta_x as isize,
-                                    -delta_y as isize,
-                                    &board,
-                                    view_w,
-                                    view_h,
-                                );
-                                camera.last_mouse_pos = Some((column, row));
-                            }
-                        }
-                    }
-                    MouseEventKind::Up(MouseButton::Middle) => {
-                        camera.is_dragging = false;
-                        camera.last_mouse_pos = None;
-                    }
-                    _ => {}
                 }
-            }
+                MouseEventKind::Up(MouseButton::Middle) => {
+                    camera.is_dragging = false;
+                    camera.last_mouse_pos = None;
+                }
+                _ => {}
+            },
 
             _ => {} // Ignoramos Resize u otros eventos
         }

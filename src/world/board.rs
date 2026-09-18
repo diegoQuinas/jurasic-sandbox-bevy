@@ -7,7 +7,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn is_inside(&self, position: Position) -> bool {
+    pub const fn is_inside(&self, position: Position) -> bool {
         position.x < self.width && position.y < self.height
     }
 }
