@@ -156,11 +156,11 @@ impl DinoState {
             DinoState::Dieing
         } else if is_pregnant {
             DinoState::LayingEgg
-        } else if hunger > 0.5 {
+        } else if hunger > 0.0 {
             DinoState::SeekingFood
         } else if health < 1.0 {
             DinoState::Healing
-        }else if desire >= 1.0 && maturity > 0.3 {
+        } else if desire >= 1.0 && maturity > 0.3 {
             DinoState::SeekingPartner
         } else {
             DinoState::Wandering
