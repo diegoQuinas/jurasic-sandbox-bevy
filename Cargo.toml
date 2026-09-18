@@ -2,6 +2,7 @@
 name = "jurasic-sandbox-bevy"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 bevy = { version = "0.19", default-features = false, features = ["debug"] }
