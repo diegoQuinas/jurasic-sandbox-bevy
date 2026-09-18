@@ -3,3 +3,5 @@
 /.direnv
 /result
 /.serena
+/.devenv
+/.devenv.flake.nix
