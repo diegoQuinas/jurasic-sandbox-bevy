@@ -6,12 +6,12 @@ command = ["cargo", "check"]
 command = ["cargo", "clippy", "--all-targets", "--all-features"]
 
 [jobs.test]
-command = ["cargo", "test", "--all-features"]
+command = ["cargo", "nextest", "run"]
 
 [jobs.all]
 command = [
   "bash",
   "-c",
-  "cargo clippy --all-targets --all-features && cargo test --all-features"
+  "cargo clippy --all-targets --all-features && cargo nextest run"
 ]
 need_stdout = true
