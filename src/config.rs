@@ -16,9 +16,10 @@ impl Config {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct SimulationConfig {
+    pub sim_hz: f64,
     pub ticks_per_second: u32,
-    pub world_width: u32,
-    pub world_height: u32,
+    pub world_width: usize,
+    pub world_height: usize,
 }
 
 #[derive(Debug, Deserialize, Clone)]

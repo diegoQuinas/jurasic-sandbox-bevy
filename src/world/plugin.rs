@@ -12,8 +12,8 @@ impl Plugin for BoardPlugin {
         // in the same schedule without an extra ApplyDeferred.
         let config = app.world().resource::<Config>();
         let board = Board {
-            width: config.simulation.world_width as usize,
-            height: config.simulation.world_height as usize,
+            width: config.simulation.world_width,
+            height: config.simulation.world_height,
         };
         app.insert_resource(Occupancy::new(board.width, board.height));
         app.insert_resource(board);
