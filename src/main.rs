@@ -15,10 +15,15 @@ mod ui;
 mod world;
 
 fn main() {
+    let sim_hz = std::env::var("SIM_HZ")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(120.0);
+
     App::new()
         .init_resource::<Performance>()
         .init_resource::<SystemPerformance>()
-        .insert_resource(Time::<Fixed>::from_hz(120.0))
+        .insert_resource(Time::<Fixed>::from_hz(sim_hz))
         .configure_sets(Startup, (StartupSet::Board, StartupSet::Creatures).chain())
         .add_systems(Startup, limit_fixed_catchup)
         .add_systems(Update, performance_system)
