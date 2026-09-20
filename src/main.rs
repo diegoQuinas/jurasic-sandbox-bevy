@@ -15,10 +15,19 @@ mod ui;
 mod world;
 
 fn main() {
-    let sim_hz = std::env::var("SIM_HZ")
-        .ok()
-        .and_then(|v| v.parse::<f64>().ok())
-        .unwrap_or(120.0);
+    // Leemos la variable de entorno SIM_HZ para saber a qué frecuencia (ticks
+    // por segundo) tiene que correr la simulación.
+    //
+    // std::env::var devuelve un Result: Ok(texto) si la variable existe,
+    // o Err(...) si no está definida. Con `match` manejamos los dos casos.
+    let sim_hz = match std::env::var("SIM_HZ") {
+        // La variable existe: intentamos convertir el texto a número (f64).
+        // Si el texto no es un número válido (ej: "abc"), parse() falla y
+        // usamos 120.0 como respaldo gracias a unwrap_or.
+        Ok(texto) => texto.parse().unwrap_or(120.0),
+        // La variable no está definida: usamos 120.0 por defecto.
+        Err(_) => 120.0,
+    };
 
     App::new()
         .init_resource::<Performance>()
