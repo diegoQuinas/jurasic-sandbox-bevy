@@ -9,7 +9,7 @@ use crate::{
         movement::{
             MAX_SEEK_RADIUS, find_closest_tile, find_nearest_on_grid, neighborhood, try_move,
         },
-        spawn::{ForestNoise, plant_bundle},
+        spawn::{ForestNoise, plant_bundle, trunk_bundle},
     },
     world::{Position, WorldMap},
 };
@@ -113,6 +113,7 @@ pub fn herbivore_eating_system(
             eaten_plants.insert(plant_entity);
             if plant.health == 0 {
                 commands.entity(plant_entity).despawn();
+                commands.spawn(trunk_bundle(cell.x, cell.y));
                 world.set_free(cell);
                 hungry.decrease(1.0);
                 break;

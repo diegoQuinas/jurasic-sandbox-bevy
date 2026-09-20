@@ -6,7 +6,10 @@ use bevy::prelude::Resource;
 use noise::{Fbm, NoiseFn, Perlin};
 use rand::{Rng, RngExt, rng, rngs::ThreadRng, seq::IndexedRandom};
 
-use crate::world::{Board, Occupancy, Position, Renderable};
+use crate::{
+    simulation::Trunk,
+    world::{Board, Occupancy, Position, Renderable},
+};
 
 use super::components::{
     Corpse, Decay, Desire, DinoState, DinosaurStats, Egg, Gender, Grass, Health, Herbivore, Hunger,
@@ -198,4 +201,19 @@ fn random_green() -> (u8, u8, u8) {
     let b = rng.random_range(20..100);
 
     (r, g, b)
+}
+
+pub fn trunk_bundle(x: usize, y: usize) -> impl Bundle {
+    (
+        Trunk,
+        Decay {
+            degradation_threshold: 1.0,
+            degradation: 0.0,
+        },
+        Renderable {
+            glyph: "╫",
+            color: (139, 90, 43),
+        },
+        Position { x, y, z: 3 },
+    )
 }

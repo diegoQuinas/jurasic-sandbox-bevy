@@ -187,3 +187,6 @@ impl Decay {
         self.degradation = (self.degradation + amount).min(self.degradation_threshold);
     }
 }
+
+#[derive(Component)]
+pub struct Trunk;
