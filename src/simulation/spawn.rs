@@ -7,6 +7,7 @@ use noise::{Fbm, NoiseFn, Perlin};
 use rand::{Rng, RngExt, rng, rngs::ThreadRng, seq::IndexedRandom};
 
 use crate::{
+    config::Config,
     simulation::Trunk,
     world::{Board, Occupancy, Position, Renderable},
 };
@@ -15,8 +16,6 @@ use super::components::{
     Corpse, Decay, Desire, DinoState, DinosaurStats, Egg, Gender, Grass, Health, Herbivore, Hunger,
     Maturity, Plant,
 };
-
-pub const STARTING_FAMILIES: u32 = 100;
 
 /// Low-frequency Perlin (FBM) that marks forest groves. Same field is used at
 /// startup and when trees grow back, so new plants keep clustering.
@@ -55,10 +54,11 @@ impl ForestNoise {
     }
 }
 
-fn create_families(rng: &mut ThreadRng) -> Vec<DinosaurStats> {
+fn create_families(rng: &mut ThreadRng, config: Res<Config>) -> Vec<DinosaurStats> {
     let starting_generation_number = 0;
+    let starting_dinosaurs = config.dinosaurs.initial_population;
 
-    (1..=STARTING_FAMILIES)
+    (1..=starting_dinosaurs)
         .map(|_| {
             let redness = rng.random_range(25..=255);
             let metabolism = (redness as f64) / 255.0; // More hungry ones are red
@@ -82,9 +82,10 @@ pub fn spawn_creatures(
     board: Res<Board>,
     mut occupancy: ResMut<Occupancy>,
     mut commands: Commands,
+    config: Res<Config>,
 ) {
     let mut rng = rand::rng();
-    let families = create_families(&mut rng);
+    let families = create_families(&mut rng, config);
     let forest = ForestNoise::new(rng.random());
 
     for family in families {

@@ -1,0 +1,8 @@
+[simulation]
+ticks_per_second = 150
+world_width = 1000
+world_height = 1000
+
+[dinosaurs]
+initial_population = 100
+

@@ -6,10 +6,13 @@ license = "MIT"
 
 [dependencies]
 bevy = { version = "0.19", default-features = false, features = ["debug"] }
+color-eyre = "0.6.5"
 crossterm = "0.29.0"
 noise = "0.9"
 rand = "0.10.2"
 ratatui = "0.30.2"
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.6"
 
 [lints.clippy]
 pedantic = { level = "deny", priority = -1 }
