@@ -7,3 +7,5 @@ world_height = 1000
 [dinosaurs]
 initial_population = 100
 
+[world]
+grass_density_rate = 0.1

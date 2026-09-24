@@ -54,7 +54,7 @@ impl ForestNoise {
     }
 }
 
-fn create_families(rng: &mut ThreadRng, config: Res<Config>) -> Vec<DinosaurStats> {
+fn create_families(rng: &mut ThreadRng, config: &Config) -> Vec<DinosaurStats> {
     let starting_generation_number = 0;
     let starting_dinosaurs = config.dinosaurs.initial_population;
 
@@ -85,7 +85,7 @@ pub fn spawn_creatures(
     config: Res<Config>,
 ) {
     let mut rng = rand::rng();
-    let families = create_families(&mut rng, config);
+    let families = create_families(&mut rng, &config);
     let forest = ForestNoise::new(rng.random());
 
     for family in families {
@@ -97,7 +97,7 @@ pub fn spawn_creatures(
 
     for x in 0..board.width {
         for y in 0..board.height {
-            if rng.random_bool(0.3) {
+            if rng.random_bool(config.world.grass_density_rate) {
                 commands.spawn(grass_bundle(x, y));
             }
             if forest.should_spawn_tree(x, y, &mut rng) {

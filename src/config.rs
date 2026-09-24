@@ -5,6 +5,7 @@ use serde::Deserialize;
 pub struct Config {
     pub simulation: SimulationConfig,
     pub dinosaurs: DinosaurConfig,
+    pub world: WorldConfig,
 }
 
 impl Config {
@@ -25,4 +26,9 @@ pub struct SimulationConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct DinosaurConfig {
     pub initial_population: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct WorldConfig {
+    pub grass_density_rate: f64,
 }
