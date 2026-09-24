@@ -30,5 +30,6 @@ pub struct DinosaurConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct WorldConfig {
+    pub max_trees: usize,
     pub grass_density_rate: f64,
 }

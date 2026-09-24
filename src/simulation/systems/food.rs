@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use rand::{RngExt, rng};
 
 use crate::{
+    config::Config,
     simulation::{
         components::{DinoState, DinosaurStats, Herbivore, Hunger, Plant},
         movement::{
@@ -127,7 +128,13 @@ pub fn spawn_random_plants_system(
     mut commands: Commands,
     mut world: WorldMap,
     forest: Res<ForestNoise>,
+    config: Res<Config>,
+    trees: Query<(), With<Plant>>,
 ) {
+    let count = trees.count();
+    if count >= config.world.max_trees {
+        return;
+    }
     let mut rng = rng();
     let (width, height) = world.dimensions();
     if width == 0 || height == 0 {

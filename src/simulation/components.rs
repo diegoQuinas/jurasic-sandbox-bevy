@@ -1,4 +1,5 @@
 use bevy::ecs::component::Component;
+use rand::{RngExt, rng};
 
 #[derive(Component)]
 pub struct Egg {
@@ -137,6 +138,7 @@ pub struct DinosaurStats {
 #[derive(Component, Default, Eq, PartialEq, Debug, Clone, Copy)]
 pub enum DinoState {
     #[default]
+    Wait,
     Wandering,
     Healing,
     SeekingPartner,
@@ -145,28 +147,87 @@ pub enum DinoState {
     Dieing,
 }
 
+/// What this dino can actually make progress on this tick.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DinoOptions {
+    /// A free neighboring cell exists to drop an egg.
+    pub can_lay: bool,
+    /// A plant is inside the seek radius.
+    pub food_in_reach: bool,
+    /// An opposite-sex adult who would also mate is inside the seek radius.
+    pub mate_in_reach: bool,
+}
+
+impl DinoState {
+    /// Needs stay ordered (death, egg, food, heal, mate, wander), but a need
+    /// that cannot be acted on is skipped so the tick is not spent waiting.
+    pub fn decide(
+        is_pregnant: bool,
+        hunger: f64,
+        maturity: f64,
+        health: f64,
+        desire: f64,
+        options: DinoOptions,
+    ) -> Self {
+        if maturity >= 1.0 || health <= 0.0 {
+            return Self::Dieing;
+        }
+        if is_pregnant && options.can_lay {
+            return Self::LayingEgg;
+        }
+        if hunger > 0.0 && options.food_in_reach {
+            return Self::SeekingFood;
+        }
+        if health < 1.0 {
+            return Self::Healing;
+        }
+        if Self::open_to_mate(maturity, desire) && options.mate_in_reach {
+            return Self::SeekingPartner;
+        }
+        let mut rng = rng();
+
+        let just_wait = rng.random_bool(0.5);
+
+        if just_wait {
+            return Self::Wait;
+        }
+
+        Self::Wandering
+    }
+
+    /// True when mating would win once every higher, currently possible need is set aside.
+    pub fn would_mate(
+        is_pregnant: bool,
+        hunger: f64,
+        maturity: f64,
+        health: f64,
+        desire: f64,
+        can_lay: bool,
+        food_in_reach: bool,
+    ) -> bool {
+        if maturity >= 1.0 || health <= 0.0 {
+            return false;
+        }
+        if is_pregnant && can_lay {
+            return false;
+        }
+        if hunger > 0.0 && food_in_reach {
+            return false;
+        }
+        if health < 1.0 {
+            return false;
+        }
+        Self::open_to_mate(maturity, desire)
+    }
+
+    const fn open_to_mate(maturity: f64, desire: f64) -> bool {
+        desire >= 1.0 && maturity > 0.3
+    }
+}
+
 /// `true` = male, `false` = female. Females receive `Pregnant` on mating.
 #[derive(Component, Clone, Copy, Debug)]
 pub struct Gender(pub bool);
-
-impl DinoState {
-    /// Food always wins over mating; a pregnant dino only lays.
-    pub fn decide(is_pregnant: bool, hunger: f64, maturity: f64, health: f64, desire: f64) -> Self {
-        if maturity >= 1.0 || health <= 0.0 {
-            Self::Dieing
-        } else if is_pregnant {
-            Self::LayingEgg
-        } else if hunger > 0.0 {
-            Self::SeekingFood
-        } else if health < 1.0 {
-            Self::Healing
-        } else if desire >= 1.0 && maturity > 0.3 {
-            Self::SeekingPartner
-        } else {
-            Self::Wandering
-        }
-    }
-}
 
 #[derive(Component)]
 pub struct Herbivore {}

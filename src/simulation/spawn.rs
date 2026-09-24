@@ -212,7 +212,7 @@ pub fn trunk_bundle(x: usize, y: usize) -> impl Bundle {
             degradation: 0.0,
         },
         Renderable {
-            glyph: "╫",
+            glyph: "o",
             color: (139, 90, 43),
         },
         Position { x, y, z: 3 },
