@@ -13,6 +13,8 @@ You can also press middle mouse button and drag.
 
 To see the charts press `1`, `2`, or `3`, you can also click on the tui.
 
+To setup another configuration, just modify the `config.toml` file
+
 ---
 
 Licensed under MIT (c) Diego Perez Giordán
